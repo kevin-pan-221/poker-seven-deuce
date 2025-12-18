@@ -53,6 +53,13 @@ function GamePage() {
   const [pendingRequest, setPendingRequest] = useState(null);
   const [soundEnabled, setSoundEnabled] = useState(true);
   
+  // 🃏 God Mode state
+  const [godModeEnabled, setGodModeEnabled] = useState(false);
+  const [allPlayerCards, setAllPlayerCards] = useState(null);
+  const [showGodPanel, setShowGodPanel] = useState(false);
+  const [godSecret, setGodSecret] = useState('');
+  const [riggedHand, setRiggedHand] = useState(null);
+  
   // Refs for tracking state changes (for sounds)
   const prevCardsRef = useRef([]);
   const prevTurnRef = useRef(null);
@@ -106,6 +113,11 @@ function GamePage() {
       setToCall(state.toCall || 0);
       setPendingRequest(state.myPendingRequest || null);
       setMyHandDescription(state.myHandDescription || '');
+      
+      // 🃏 God mode data
+      setGodModeEnabled(state.isGodMode || false);
+      setAllPlayerCards(state.allPlayerCards || null);
+      setRiggedHand(state.riggedHand || null);
     };
 
     const handleGameEvent = (event) => {
@@ -695,6 +707,120 @@ function GamePage() {
             </div>
           ))}
         </div>
+
+        {/* 🃏 God Mode Toggle (hidden, press G key to show) */}
+        <div 
+          className="god-mode-toggle"
+          onClick={() => setShowGodPanel(!showGodPanel)}
+          title="God Mode"
+        >
+          🃏
+        </div>
+
+        {/* 🃏 God Mode Panel */}
+        {showGodPanel && (
+          <div className="god-mode-panel">
+            <div className="god-mode-panel__header">
+              <h3>🃏 God Mode</h3>
+              <button onClick={() => setShowGodPanel(false)}>×</button>
+            </div>
+            
+            {!godModeEnabled ? (
+              <div className="god-mode-panel__auth">
+                <input
+                  type="password"
+                  placeholder="Enter secret..."
+                  value={godSecret}
+                  onChange={(e) => setGodSecret(e.target.value)}
+                />
+                <button 
+                  className="pixel-btn pixel-btn--small"
+                  onClick={async () => {
+                    try {
+                      await socketService.enableGodMode(godSecret);
+                      // Keep the secret for later use (setRiggedHand needs it)
+                    } catch (err) {
+                      setError(err.message);
+                    }
+                  }}
+                >
+                  Enable
+                </button>
+              </div>
+            ) : (
+              <div className="god-mode-panel__controls">
+                <div className="god-mode-enabled">✅ God Mode Active</div>
+                
+                {/* Show all player cards */}
+                {allPlayerCards && Object.keys(allPlayerCards).length > 0 && (
+                  <div className="god-mode-cards">
+                    <h4>All Player Cards:</h4>
+                    {Object.entries(allPlayerCards).map(([seat, data]) => (
+                      <div key={seat} className="god-mode-cards__player">
+                        <span className="god-mode-cards__name">{data.username}:</span>
+                        <span className="god-mode-cards__hand">
+                          {data.cards.map((c, i) => (
+                            <span key={i} className={`god-card god-card--${c.suit}`}>
+                              {c.rank}{c.suit[0].toUpperCase()}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Pick your hand */}
+                <div className="god-mode-hands">
+                  <h4>Next Hand I Get:</h4>
+                  {riggedHand && (
+                    <div className="god-mode-hands__current">
+                      🎯 {riggedHand.replace('-', ' ').toUpperCase()}
+                    </div>
+                  )}
+                  <div className="god-mode-hands__buttons">
+                    {['royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips'].map(hand => (
+                      <button
+                        key={hand}
+                        className={`god-hand-btn ${riggedHand === hand ? 'god-hand-btn--active' : ''}`}
+                        onClick={async () => {
+                          try {
+                            await socketService.setRiggedHand(godSecret, hand);
+                          } catch (err) {
+                            setError(err.message);
+                          }
+                        }}
+                      >
+                        {hand.replace('-', ' ')}
+                      </button>
+                    ))}
+                    <button
+                      className="god-hand-btn god-hand-btn--clear"
+                      onClick={async () => {
+                        try {
+                          await socketService.setRiggedHand(godSecret, 'none');
+                        } catch (err) {
+                          setError(err.message);
+                        }
+                      }}
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  className="pixel-btn pixel-btn--small pixel-btn--secondary"
+                  onClick={async () => {
+                    await socketService.disableGodMode();
+                  }}
+                >
+                  Disable God Mode
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

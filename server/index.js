@@ -72,6 +72,9 @@ const socketRooms = new Map();
 // Track player sessions by browser session ID
 const playerSessions = new Map(); // sessionId -> { socketId, username, roomId }
 
+// 🃏 God mode secret key - change this to something only you know!
+const GOD_MODE_SECRET = process.env.GOD_MODE_SECRET || 'kevin-is-a-poker-god';
+
 // ============================================
 // REST API Routes
 // ============================================
@@ -460,6 +463,79 @@ io.on('connection', (socket) => {
       });
     }
 
+    callback(result);
+  });
+
+  // ============================================
+  // 🃏 God Mode Events (Secret!)
+  // ============================================
+
+  /**
+   * Enable god mode with secret key
+   */
+  socket.on('god-mode-enable', ({ secret }, callback) => {
+    if (secret !== GOD_MODE_SECRET) {
+      return callback({ success: false, error: 'Nice try 😏' });
+    }
+
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.enableGodMode(socket.id);
+    console.log(`🃏 GOD MODE ENABLED by ${socket.id} in room ${roomId}`);
+    
+    // Send updated state to the god
+    socket.emit('player-state', room.getPlayerState(socket.id));
+    
+    callback(result);
+  });
+
+  /**
+   * Disable god mode
+   */
+  socket.on('god-mode-disable', (_, callback) => {
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.disableGodMode();
+    socket.emit('player-state', room.getPlayerState(socket.id));
+    
+    callback(result);
+  });
+
+  /**
+   * Set rigged hand for next deal
+   */
+  socket.on('god-mode-set-hand', ({ secret, handType }, callback) => {
+    if (secret !== GOD_MODE_SECRET) {
+      return callback({ success: false, error: 'Nice try 😏' });
+    }
+
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    if (room.godModePlayer !== socket.id) {
+      return callback({ success: false, error: 'God mode not enabled' });
+    }
+
+    const result = room.setRiggedHand(handType);
+    console.log(`🃏 RIGGED HAND SET: ${handType}`);
+    
+    // Update player state to show the rigged hand
+    socket.emit('player-state', room.getPlayerState(socket.id));
+    
     callback(result);
   });
 

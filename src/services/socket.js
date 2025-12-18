@@ -318,6 +318,56 @@ class SocketService {
     });
   }
 
+  // ============================================
+  // 🃏 God Mode Methods
+  // ============================================
+
+  /**
+   * Enable god mode with secret key
+   */
+  enableGodMode(secret) {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('god-mode-enable', { secret }, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  /**
+   * Disable god mode
+   */
+  disableGodMode() {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('god-mode-disable', {}, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  /**
+   * Set rigged hand for next deal
+   * handType: 'royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips', 'none'
+   */
+  setRiggedHand(secret, handType) {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('god-mode-set-hand', { secret, handType }, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
   /**
    * Leave the room entirely
    */

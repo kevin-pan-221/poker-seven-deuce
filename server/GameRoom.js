@@ -65,12 +65,136 @@ export class GameRoom {
     
     // Seat requests (pending host approval)
     this.seatRequests = new Map(); // requestId -> { socketId, username, seatIndex, buyIn, timestamp }
-    
+
     // Callback for auto-dealing (set by server)
     this.onAutoAdvance = null;
+    
+    // 🃏 God mode - for "testing" purposes only 😈
+    this.godModePlayer = null; // socketId of god mode player
+    this.riggedHand = null; // 'royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips'
+    this.riggedCommunityCards = null; // Cards to force on the board
   }
-
+  
   /**
+   * 🃏 Generate hole cards and community cards for a rigged hand
+   */
+  generateRiggedHand(handType) {
+    const suits = ['spades', 'hearts', 'diamonds', 'clubs'];
+    const randomSuit = () => suits[Math.floor(Math.random() * suits.length)];
+    
+    switch (handType) {
+      case 'royal-flush': {
+        const suit = randomSuit();
+        return {
+          holeCards: [
+            { rank: 'A', suit },
+            { rank: 'K', suit }
+          ],
+          communityCards: [
+            { rank: 'Q', suit },
+            { rank: 'J', suit },
+            { rank: '10', suit },
+            { rank: '2', suit: suit === 'spades' ? 'hearts' : 'spades' },
+            { rank: '3', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
+          ]
+        };
+      }
+      case 'straight-flush': {
+        const suit = randomSuit();
+        return {
+          holeCards: [
+            { rank: '9', suit },
+            { rank: '8', suit }
+          ],
+          communityCards: [
+            { rank: '7', suit },
+            { rank: '6', suit },
+            { rank: '5', suit },
+            { rank: 'K', suit: suit === 'spades' ? 'hearts' : 'spades' },
+            { rank: '2', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
+          ]
+        };
+      }
+      case 'quads': {
+        return {
+          holeCards: [
+            { rank: 'A', suit: 'spades' },
+            { rank: 'A', suit: 'hearts' }
+          ],
+          communityCards: [
+            { rank: 'A', suit: 'diamonds' },
+            { rank: 'A', suit: 'clubs' },
+            { rank: 'K', suit: 'spades' },
+            { rank: '7', suit: 'hearts' },
+            { rank: '2', suit: 'diamonds' }
+          ]
+        };
+      }
+      case 'full-house': {
+        return {
+          holeCards: [
+            { rank: 'K', suit: 'spades' },
+            { rank: 'K', suit: 'hearts' }
+          ],
+          communityCards: [
+            { rank: 'K', suit: 'diamonds' },
+            { rank: 'Q', suit: 'clubs' },
+            { rank: 'Q', suit: 'spades' },
+            { rank: '7', suit: 'hearts' },
+            { rank: '2', suit: 'diamonds' }
+          ]
+        };
+      }
+      case 'flush': {
+        const suit = randomSuit();
+        return {
+          holeCards: [
+            { rank: 'A', suit },
+            { rank: 'J', suit }
+          ],
+          communityCards: [
+            { rank: '8', suit },
+            { rank: '5', suit },
+            { rank: '3', suit },
+            { rank: 'K', suit: suit === 'spades' ? 'hearts' : 'spades' },
+            { rank: '2', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
+          ]
+        };
+      }
+      case 'straight': {
+        return {
+          holeCards: [
+            { rank: '10', suit: 'spades' },
+            { rank: '9', suit: 'hearts' }
+          ],
+          communityCards: [
+            { rank: '8', suit: 'diamonds' },
+            { rank: '7', suit: 'clubs' },
+            { rank: '6', suit: 'spades' },
+            { rank: 'K', suit: 'hearts' },
+            { rank: '2', suit: 'diamonds' }
+          ]
+        };
+      }
+      case 'trips': {
+        return {
+          holeCards: [
+            { rank: 'Q', suit: 'spades' },
+            { rank: 'Q', suit: 'hearts' }
+          ],
+          communityCards: [
+            { rank: 'Q', suit: 'diamonds' },
+            { rank: '9', suit: 'clubs' },
+            { rank: '5', suit: 'spades' },
+            { rank: 'K', suit: 'hearts' },
+            { rank: '2', suit: 'diamonds' }
+          ]
+        };
+      }
+      default:
+        return null;
+    }
+  }  /**
    * Add a player to the room (not seated yet)
    */
   addPlayer(socketId, username) {
@@ -451,10 +575,40 @@ export class GameRoom {
     this.bbSeat = bbSeat;
 
     // Deal 2 cards to each seated player
-    for (const player of seatedPlayers) {
-      const { dealt, remaining } = dealCards(this.deck, 2);
-      player.cards = dealt;
-      this.deck = remaining;
+    // 🃏 God mode: rig the hand if set
+    if (this.godModePlayer && this.riggedHand) {
+      const riggedCards = this.generateRiggedHand(this.riggedHand);
+      
+      for (const player of seatedPlayers) {
+        if (player.socketId === this.godModePlayer) {
+          // Give god mode player the rigged hole cards
+          player.cards = riggedCards.holeCards;
+          // Remove these cards from deck
+          this.deck = this.deck.filter(c => 
+            !riggedCards.holeCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
+          );
+          // Store the rigged community cards for later
+          this.riggedCommunityCards = riggedCards.communityCards;
+          // Remove community cards from deck too
+          this.deck = this.deck.filter(c => 
+            !riggedCards.communityCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
+          );
+        } else {
+          // Deal normally to others
+          const { dealt, remaining } = dealCards(this.deck, 2);
+          player.cards = dealt;
+          this.deck = remaining;
+        }
+      }
+      // Clear the rigged hand after using
+      this.riggedHand = null;
+    } else {
+      // Normal dealing
+      for (const player of seatedPlayers) {
+        const { dealt, remaining } = dealCards(this.deck, 2);
+        player.cards = dealt;
+        this.deck = remaining;
+      }
     }
 
     this.phase = PHASES.PRE_FLOP;
@@ -809,9 +963,22 @@ export class GameRoom {
     }
 
     this.deck = this.deck.slice(1); // Burn
-    const { dealt, remaining } = dealCards(this.deck, 3);
+    
+    // 🃏 Check for rigged cards
+    let dealt;
+    if (this.riggedCommunityCards && this.riggedCommunityCards.length >= 3) {
+      dealt = this.riggedCommunityCards.slice(0, 3);
+      // Remove rigged cards from deck to avoid duplicates
+      this.deck = this.deck.filter(c => 
+        !dealt.some(r => r.rank === c.rank && r.suit === c.suit)
+      );
+    } else {
+      const result = dealCards(this.deck, 3);
+      dealt = result.dealt;
+      this.deck = result.remaining;
+    }
+    
     this.communityCards = dealt;
-    this.deck = remaining;
     this.phase = PHASES.FLOP;
 
     return { success: true, cards: dealt };
@@ -826,9 +993,21 @@ export class GameRoom {
     }
 
     this.deck = this.deck.slice(1); // Burn
-    const { dealt, remaining } = dealCards(this.deck, 1);
+    
+    // 🃏 Check for rigged cards
+    let dealt;
+    if (this.riggedCommunityCards && this.riggedCommunityCards.length >= 4) {
+      dealt = [this.riggedCommunityCards[3]];
+      this.deck = this.deck.filter(c => 
+        c.rank !== dealt[0].rank || c.suit !== dealt[0].suit
+      );
+    } else {
+      const result = dealCards(this.deck, 1);
+      dealt = result.dealt;
+      this.deck = result.remaining;
+    }
+    
     this.communityCards.push(dealt[0]);
-    this.deck = remaining;
     this.phase = PHASES.TURN;
 
     return { success: true, card: dealt[0] };
@@ -843,9 +1022,24 @@ export class GameRoom {
     }
 
     this.deck = this.deck.slice(1); // Burn
-    const { dealt, remaining } = dealCards(this.deck, 1);
+    
+    // 🃏 Check for rigged cards
+    let dealt;
+    if (this.riggedCommunityCards && this.riggedCommunityCards.length >= 5) {
+      dealt = [this.riggedCommunityCards[4]];
+      this.deck = this.deck.filter(c => 
+        c.rank !== dealt[0].rank || c.suit !== dealt[0].suit
+      );
+      // Clear rigged cards after river (used up)
+      this.riggedCommunityCards = null;
+    } else {
+      const result = dealCards(this.deck, 1);
+      dealt = result.dealt;
+      this.deck = result.remaining;
+      this.riggedCommunityCards = null; // Clear anyway
+    }
+    
     this.communityCards.push(dealt[0]);
-    this.deck = remaining;
     this.phase = PHASES.RIVER;
 
     return { success: true, card: dealt[0] };
@@ -1030,6 +1224,53 @@ export class GameRoom {
   }
 
   /**
+   * 🃏 Enable god mode for a player
+   */
+  enableGodMode(socketId) {
+    this.godModePlayer = socketId;
+    return { success: true, message: 'God mode enabled. You can now see all cards.' };
+  }
+
+  /**
+   * 🃏 Disable god mode
+   */
+  disableGodMode() {
+    this.godModePlayer = null;
+    this.riggedHand = null;
+    return { success: true, message: 'God mode disabled.' };
+  }
+
+  /**
+   * 🃏 Set the rigged hand for next deal
+   * handType: 'royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips'
+   */
+  setRiggedHand(handType) {
+    const validHands = ['royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips', 'none'];
+    if (!validHands.includes(handType)) {
+      return { success: false, error: `Invalid hand type: ${handType}` };
+    }
+    
+    this.riggedHand = handType === 'none' ? null : handType;
+    return { success: true, message: handType === 'none' ? 'Rigging cleared.' : `Next hand: ${handType} 😈` };
+  }
+
+  /**
+   * 🃏 Get all player cards (for god mode)
+   */
+  getAllPlayerCards() {
+    const allCards = {};
+    for (const [seatIndex, seat] of this.seats.entries()) {
+      if (seat && seat.cards && seat.cards.length > 0) {
+        allCards[seatIndex] = {
+          username: seat.username,
+          cards: seat.cards
+        };
+      }
+    }
+    return allCards;
+  }
+
+  /**
    * Get state for a specific player (includes their cards)
    */
   getPlayerState(socketId) {
@@ -1056,6 +1297,9 @@ export class GameRoom {
       }
     }
 
+    // God mode extras
+    const isGodMode = socketId === this.godModePlayer;
+    
     return {
       ...publicState,
       myCards: player?.cards || [],
@@ -1065,7 +1309,11 @@ export class GameRoom {
       toCall: player ? this.currentBet - (player.currentBet || 0) : 0,
       myPendingRequest,
       myHandDescription,
-      myHandRank
+      myHandRank,
+      // 🃏 God mode data
+      isGodMode,
+      allPlayerCards: isGodMode ? this.getAllPlayerCards() : null,
+      riggedHand: isGodMode ? this.riggedHand : null
     };
   }
 }

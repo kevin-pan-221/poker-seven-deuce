@@ -500,6 +500,212 @@
   color: var(--text-primary);
 }
 
+/* 🃏 God Mode Styles */
+.god-mode-toggle {
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  width: 30px;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+  font-size: 1rem;
+  z-index: 1000;
+}
+
+.god-mode-toggle:hover {
+  opacity: 1;
+  background: rgba(139, 0, 0, 0.8);
+}
+
+.god-mode-panel {
+  position: fixed;
+  bottom: 50px;
+  left: 10px;
+  width: 280px;
+  background: rgba(20, 0, 0, 0.95);
+  border: 2px solid #8b0000;
+  border-radius: 8px;
+  padding: var(--spacing-md);
+  z-index: 1001;
+  box-shadow: 0 0 30px rgba(139, 0, 0, 0.5);
+}
+
+.god-mode-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  border-bottom: 1px solid #8b0000;
+  padding-bottom: var(--spacing-xs);
+}
+
+.god-mode-panel__header h3 {
+  font-family: var(--font-pixel);
+  font-size: 0.7rem;
+  color: #ff4444;
+  margin: 0;
+}
+
+.god-mode-panel__header button {
+  background: none;
+  border: none;
+  color: #ff4444;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.god-mode-panel__auth {
+  display: flex;
+  gap: var(--spacing-xs);
+}
+
+.god-mode-panel__auth input {
+  flex: 1;
+  padding: var(--spacing-xs);
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid #8b0000;
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.god-mode-panel__controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.god-mode-enabled {
+  color: #44ff44;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  text-align: center;
+  padding: var(--spacing-xs);
+  background: rgba(0, 100, 0, 0.3);
+  border-radius: 4px;
+}
+
+.god-mode-cards {
+  background: rgba(0, 0, 0, 0.4);
+  padding: var(--spacing-sm);
+  border-radius: 4px;
+}
+
+.god-mode-cards h4 {
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  color: #ff8888;
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.god-mode-cards__player {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 0;
+  font-size: 0.8rem;
+}
+
+.god-mode-cards__name {
+  color: var(--text-muted);
+}
+
+.god-mode-cards__hand {
+  display: flex;
+  gap: 4px;
+}
+
+.god-card {
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  padding: 2px 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+.god-card--hearts,
+.god-card--diamonds {
+  color: #ff4444;
+}
+
+.god-card--spades,
+.god-card--clubs {
+  color: #ffffff;
+}
+
+.god-mode-hands {
+  background: rgba(0, 0, 0, 0.4);
+  padding: var(--spacing-sm);
+  border-radius: 4px;
+}
+
+.god-mode-hands h4 {
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  color: #ff8888;
+  margin: 0 0 var(--spacing-xs) 0;
+}
+
+.god-mode-hands__current {
+  text-align: center;
+  color: #ffff44;
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  padding: 4px;
+  background: rgba(255, 255, 0, 0.1);
+  border-radius: 4px;
+  margin-bottom: var(--spacing-xs);
+  text-transform: capitalize;
+}
+
+.god-mode-hands__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.god-hand-btn {
+  flex: 1 1 calc(50% - 4px);
+  padding: 4px 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  background: rgba(139, 0, 0, 0.5);
+  border: 1px solid #8b0000;
+  color: #ffcccc;
+  border-radius: 3px;
+  cursor: pointer;
+  text-transform: capitalize;
+  transition: all 0.2s;
+}
+
+.god-hand-btn:hover {
+  background: rgba(139, 0, 0, 0.8);
+  color: #ffffff;
+}
+
+.god-hand-btn--active {
+  background: rgba(255, 100, 0, 0.8);
+  border-color: #ff6400;
+  color: #ffffff;
+}
+
+.god-hand-btn--clear {
+  flex: 1 1 100%;
+  background: rgba(100, 100, 100, 0.5);
+  border-color: #666;
+}
+
+.god-hand-btn--clear:hover {
+  background: rgba(100, 100, 100, 0.8);
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .game-info-bar {
