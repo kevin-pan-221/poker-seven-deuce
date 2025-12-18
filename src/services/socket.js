@@ -4,10 +4,25 @@
 
 import { io } from 'socket.io-client';
 
-// Use current hostname for LAN support
-const SERVER_URL = window.location.hostname === 'localhost' 
-  ? 'http://localhost:3001' 
-  : `http://${window.location.hostname}:3001`;
+// Use environment variable for production, fallback for local dev
+const getServerUrl = () => {
+  // Vite exposes env vars with VITE_ prefix
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  // Production: same origin (frontend served from backend)
+  if (import.meta.env.PROD) {
+    return window.location.origin;
+  }
+  // Local development fallback
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:3001';
+  }
+  // LAN fallback
+  return `http://${window.location.hostname}:3001`;
+};
+
+const SERVER_URL = getServerUrl();
 
 // Session ID persists per browser tab
 const getSessionId = () => {

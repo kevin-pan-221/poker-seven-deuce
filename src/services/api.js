@@ -2,10 +2,25 @@
  * API service for REST endpoints
  */
 
-// Use current hostname for LAN support
-const API_URL = window.location.hostname === 'localhost'
-  ? 'http://localhost:3001/api'
-  : `http://${window.location.hostname}:3001/api`;
+// Use environment variable for production, fallback for local dev
+const getApiUrl = () => {
+  // Vite exposes env vars with VITE_ prefix
+  if (import.meta.env.VITE_API_URL) {
+    return `${import.meta.env.VITE_API_URL}/api`;
+  }
+  // Production: same origin (frontend served from backend)
+  if (import.meta.env.PROD) {
+    return '/api';
+  }
+  // Local development fallback
+  if (window.location.hostname === 'localhost') {
+    return 'http://localhost:3001/api';
+  }
+  // LAN fallback
+  return `http://${window.location.hostname}:3001/api`;
+};
+
+const API_URL = getApiUrl();
 
 /**
  * Create a new game room

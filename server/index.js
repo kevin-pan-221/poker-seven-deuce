@@ -8,20 +8,59 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { GameRoom, PHASES, ACTIONS } from './GameRoom.js';
+
+// ES module dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const server = createServer(app);
 
-// Socket.io with CORS for development and LAN access
+// Allowed origins for CORS
+const getAllowedOrigins = () => {
+  const origins = [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://192.168.1.39:5173'
+  ];
+  // Add Railway frontend URL if set
+  if (process.env.FRONTEND_URL) {
+    origins.push(process.env.FRONTEND_URL);
+  }
+  // Also allow any railway.app subdomain
+  return origins;
+};
+
+// Socket.io with CORS for development, LAN, and production
 const io = new Server(server, {
   cors: {
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173', 'http://192.168.1.39:5173'],
+    origin: (origin, callback) => {
+      const allowed = getAllowedOrigins();
+      // Allow requests with no origin (mobile apps, curl, etc)
+      if (!origin) return callback(null, true);
+      // Allow any railway.app subdomain
+      if (origin.endsWith('.railway.app')) return callback(null, true);
+      // Check allowed list
+      if (allowed.includes(origin)) return callback(null, true);
+      callback(new Error('Not allowed by CORS'));
+    },
     methods: ['GET', 'POST']
   }
 });
 
-app.use(cors());
+// CORS middleware for REST API
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = getAllowedOrigins();
+    if (!origin) return callback(null, true);
+    if (origin.endsWith('.railway.app')) return callback(null, true);
+    if (allowed.includes(origin)) return callback(null, true);
+    callback(new Error('Not allowed by CORS'));
+  }
+}));
 app.use(express.json());
 
 // Store all active game rooms
@@ -501,6 +540,23 @@ function handleDisconnect(socket) {
 }
 
 // ============================================
+// Serve Static Frontend (Production)
+// ============================================
+
+// In production, serve the built frontend from ../dist
+const distPath = path.join(__dirname, '..', 'dist');
+app.use(express.static(distPath));
+
+// SPA fallback - serve index.html for all non-API routes
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  res.sendFile(path.join(distPath, 'index.html'));
+});
+
+// ============================================
 // Start Server
 // ============================================
 
@@ -510,6 +566,6 @@ const HOST = '0.0.0.0'; // Listen on all interfaces for LAN access
 server.listen(PORT, HOST, () => {
   console.log(`🃏 sevendeuce server running on port ${PORT}`);
   console.log(`   API: http://localhost:${PORT}/api`);
-  console.log(`   LAN: http://192.168.1.39:${PORT}`);
+  console.log(`   Serving static files from: ${distPath}`);
   console.log(`   WebSocket: ws://localhost:${PORT}`);
 });
