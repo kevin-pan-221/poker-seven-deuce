@@ -371,6 +371,10 @@ io.on('connection', (socket) => {
       return callback({ success: false, error: 'Not in a room' });
     }
 
+    if (room.hostId !== socket.id) {
+      return callback({ success: false, error: 'Only the host can start the game' });
+    }
+
     const result = room.startGame();
     
     if (result.success) {
@@ -381,7 +385,7 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Pause the game
+   * Pause the game (host only)
    */
   socket.on('pause-game', (_, callback) => {
     const roomId = socketRooms.get(socket.id);
@@ -389,6 +393,10 @@ io.on('connection', (socket) => {
 
     if (!room) {
       return callback({ success: false, error: 'Not in a room' });
+    }
+
+    if (room.hostId !== socket.id) {
+      return callback({ success: false, error: 'Only the host can pause the game' });
     }
 
     const result = room.pauseGame();
@@ -401,7 +409,7 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Resume the game
+   * Resume the game (host only)
    */
   socket.on('resume-game', (_, callback) => {
     const roomId = socketRooms.get(socket.id);
@@ -409,6 +417,10 @@ io.on('connection', (socket) => {
 
     if (!room) {
       return callback({ success: false, error: 'Not in a room' });
+    }
+
+    if (room.hostId !== socket.id) {
+      return callback({ success: false, error: 'Only the host can resume the game' });
     }
 
     const result = room.resumeGame();
@@ -421,7 +433,7 @@ io.on('connection', (socket) => {
   });
 
   /**
-   * Stop the game
+   * Stop the game (host only)
    */
   socket.on('stop-game', (_, callback) => {
     const roomId = socketRooms.get(socket.id);
@@ -429,6 +441,10 @@ io.on('connection', (socket) => {
 
     if (!room) {
       return callback({ success: false, error: 'Not in a room' });
+    }
+
+    if (room.hostId !== socket.id) {
+      return callback({ success: false, error: 'Only the host can end the game' });
     }
 
     const result = room.stopGame();
