@@ -73,7 +73,7 @@ const socketRooms = new Map();
 const playerSessions = new Map(); // sessionId -> { socketId, username, roomId }
 
 // 🃏 God mode secret key - change this to something only you know!
-const GOD_MODE_SECRET = process.env.GOD_MODE_SECRET || 'kevin-is-a-poker-god';
+const GOD_MODE_SECRET = process.env.GOD_MODE_SECRET;
 
 // ============================================
 // REST API Routes
