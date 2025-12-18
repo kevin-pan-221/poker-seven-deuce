@@ -60,6 +60,10 @@ function GamePage() {
   const [godSecret, setGodSecret] = useState('');
   const [riggedHand, setRiggedHand] = useState(null);
   
+  // Showdown state
+  const [showdownOptions, setShowdownOptions] = useState(null);
+  const [showdownData, setShowdownData] = useState(null);
+  
   // Refs for tracking state changes (for sounds)
   const prevCardsRef = useRef([]);
   const prevTurnRef = useRef(null);
@@ -113,6 +117,8 @@ function GamePage() {
       setToCall(state.toCall || 0);
       setPendingRequest(state.myPendingRequest || null);
       setMyHandDescription(state.myHandDescription || '');
+      setShowdownOptions(state.showdownOptions || null);
+      setShowdownData(state.showdownData || null);
       
       // 🃏 God mode data
       setGodModeEnabled(state.isGodMode || false);
@@ -132,6 +138,9 @@ function GamePage() {
       // Sound effects for game events
       if (event.type === 'new-hand' || event.type === 'game-started') {
         soundService.newHand();
+        // Clear showdown data for new hand
+        setShowdownData(null);
+        setShowdownOptions(null);
       }
       if (event.type === 'flop') {
         soundService.flopDealt();
@@ -150,6 +159,25 @@ function GamePage() {
       }
       if (event.type === 'showdown') {
         soundService.win();
+        // Store showdown data for display
+        setShowdownData(event);
+      }
+      if (event.type === 'hand-won') {
+        soundService.win();
+        // Store winner data for display
+        setShowdownData(event);
+      }
+      if (event.type === 'player-showed-hand') {
+        setGameEvents(prev => [...prev.slice(-4), { 
+          type: 'info', 
+          message: `👀 ${event.username} showed ${event.handDescription}` 
+        }]);
+      }
+      if (event.type === 'player-mucked') {
+        setGameEvents(prev => [...prev.slice(-4), { 
+          type: 'info', 
+          message: `🗑️ ${event.username} mucked` 
+        }]);
       }
       
       // Handle seat approval/denial notifications
@@ -378,6 +406,28 @@ function GamePage() {
     const link = window.location.href;
     navigator.clipboard.writeText(link);
     setGameEvents(prev => [...prev.slice(-4), { type: 'info', message: 'Link copied!' }]);
+  };
+
+  /**
+   * Show hand at showdown
+   */
+  const handleShowHand = async () => {
+    try {
+      await socketService.showHand();
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  /**
+   * Muck hand at showdown
+   */
+  const handleMuckHand = async () => {
+    try {
+      await socketService.muckHand();
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   /**
@@ -620,8 +670,88 @@ function GamePage() {
           dealerSeat={roomState?.dealerSeat}
         />
 
+        {/* Showdown Panel - Shows winner and revealed cards */}
+        {roomState?.phase === PHASES.SHOWDOWN && showdownData && (
+          <div className="showdown-panel animate-fade-in">
+            <div className="showdown-panel__header pixel-text">
+              {showdownData.noShowdown ? '🏆 Winner!' : '🃏 Showdown!'}
+            </div>
+            
+            {/* Winners */}
+            <div className="showdown-panel__winners">
+              {showdownData.winners?.map((winner, i) => (
+                <div key={i} className="showdown-winner">
+                  <span className="showdown-winner__name">{winner.username}</span>
+                  <span className="showdown-winner__pot">wins ${winner.potWon}</span>
+                  {winner.handDescription && (
+                    <span className="showdown-winner__hand">{winner.handDescription}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* All players' cards at showdown */}
+            {!showdownData.noShowdown && showdownData.players && (
+              <div className="showdown-panel__hands">
+                {showdownData.players.map((p, i) => (
+                  <div key={i} className={`showdown-hand ${p.isWinner ? 'showdown-hand--winner' : ''}`}>
+                    <span className="showdown-hand__name">{p.username}</span>
+                    {p.cards ? (
+                      <div className="showdown-hand__cards">
+                        {p.cards.map((card, j) => (
+                          <Card 
+                            key={j} 
+                            rank={card.rank} 
+                            suit={card.suit} 
+                            size="small"
+                          />
+                        ))}
+                        <span className="showdown-hand__desc">{p.handDescription}</span>
+                      </div>
+                    ) : p.hasMucked ? (
+                      <span className="showdown-hand__mucked">Mucked</span>
+                    ) : (
+                      <span className="showdown-hand__hidden">?? ??</span>
+                    )}
+                    {p.isWinner && <span className="showdown-hand__winner-badge">🏆</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Show/Muck buttons for player at showdown */}
+            {showdownOptions && !showdownOptions.hasShown && !showdownOptions.hasMucked && (
+              <div className="showdown-panel__actions">
+                {showdownOptions.canShow && (
+                  <button 
+                    className="pixel-btn pixel-btn--small"
+                    onClick={handleShowHand}
+                  >
+                    👀 Show Hand
+                  </button>
+                )}
+                {showdownOptions.canMuck && (
+                  <button 
+                    className="pixel-btn pixel-btn--small pixel-btn--secondary"
+                    onClick={handleMuckHand}
+                  >
+                    🗑️ Muck
+                  </button>
+                )}
+                {showdownOptions.mustShow && (
+                  <span className="showdown-panel__must-show">You must show</span>
+                )}
+              </div>
+            )}
+            
+            <div className="showdown-panel__timer">
+              Next hand starting soon...
+            </div>
+          </div>
+        )}
+
         {/* My Cards */}
-        {myCards.length > 0 && (
+        {myCards.length > 0 && roomState?.phase !== PHASES.SHOWDOWN && (
           <div className="my-cards animate-fade-in">
             <span className="my-cards__label pixel-text">Your Hand</span>
             <div className="my-cards__cards">
@@ -698,7 +828,8 @@ function GamePage() {
               {event.type === 'flop' && '🃏 Flop dealt!'}
               {event.type === 'turn' && '🃏 Turn dealt!'}
               {event.type === 'river' && '🃏 River dealt!'}
-              {event.type === 'showdown' && '🏆 Showdown!'}
+              {event.type === 'showdown' && `🏆 Showdown! ${event.winners?.[0]?.username} wins with ${event.winners?.[0]?.handDescription}`}
+              {event.type === 'hand-won' && `🏆 ${event.winners?.[0]?.username} wins $${event.winners?.[0]?.potWon}!`}
               {event.type === 'game-paused' && '⏸ Game paused'}
               {event.type === 'game-resumed' && '▶ Game resumed'}
               {event.type === 'game-stopped' && '■ Game ended'}

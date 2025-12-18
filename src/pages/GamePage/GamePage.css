@@ -706,6 +706,159 @@
   background: rgba(100, 100, 100, 0.8);
 }
 
+/* Showdown Panel */
+.showdown-panel {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(135deg, rgba(15, 15, 26, 0.98), rgba(30, 30, 50, 0.98));
+  border: 3px solid var(--accent-gold);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  min-width: 320px;
+  max-width: 500px;
+  z-index: 100;
+  box-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.3),
+    0 0 60px rgba(0, 0, 0, 0.8);
+}
+
+.showdown-panel__header {
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  margin-bottom: var(--spacing-md);
+  text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+}
+
+.showdown-panel__winners {
+  text-align: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.showdown-winner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  padding: var(--spacing-sm);
+  background: rgba(255, 215, 0, 0.1);
+  border-radius: 4px;
+  margin-bottom: var(--spacing-sm);
+}
+
+.showdown-winner__name {
+  font-family: var(--font-pixel);
+  font-size: 0.65rem;
+  color: var(--text-primary);
+}
+
+.showdown-winner__pot {
+  font-family: var(--font-pixel);
+  font-size: 0.6rem;
+  color: var(--accent-chip-green);
+}
+
+.showdown-winner__hand {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+.showdown-panel__hands {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.showdown-hand {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(30, 30, 50, 0.8);
+  border: 1px solid var(--table-border);
+  border-radius: 4px;
+}
+
+.showdown-hand--winner {
+  border-color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.showdown-hand__name {
+  font-family: var(--font-pixel);
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+  min-width: 70px;
+}
+
+.showdown-hand__cards {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+}
+
+.showdown-hand__desc {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  margin-left: var(--spacing-sm);
+}
+
+.showdown-hand__mucked {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.showdown-hand__hidden {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+}
+
+.showdown-hand__winner-badge {
+  font-size: 1.2rem;
+  margin-left: auto;
+}
+
+.showdown-panel__actions {
+  display: flex;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.showdown-panel__must-show {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--accent-gold);
+  font-style: italic;
+}
+
+.showdown-panel__timer {
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-style: italic;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .game-info-bar {
@@ -718,5 +871,10 @@
     top: var(--spacing-md);
     right: var(--spacing-md);
     left: var(--spacing-md);
+  }
+  
+  .showdown-panel {
+    min-width: 280px;
+    padding: var(--spacing-md);
   }
 }

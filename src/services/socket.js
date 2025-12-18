@@ -318,6 +318,36 @@ class SocketService {
     });
   }
 
+  /**
+   * Show hand at showdown (optional)
+   */
+  showHand() {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('show-hand', {}, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  /**
+   * Muck hand at showdown
+   */
+  muckHand() {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('muck-hand', {}, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
   // ============================================
   // 🃏 God Mode Methods
   // ============================================

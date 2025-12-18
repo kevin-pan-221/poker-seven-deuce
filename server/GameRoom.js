@@ -793,17 +793,50 @@ export class GameRoom {
   }
 
   /**
-   * Award pot to winner
+   * Award pot to winner (when everyone else folded - no showdown)
    */
   awardPot(winner) {
-    winner.bankroll += this.pot;
+    const potWon = this.pot;
+    winner.bankroll += potWon;
     this.pot = 0;
     this.phase = PHASES.SHOWDOWN;
+    
+    // Store win data (but no cards shown - they won without showdown)
+    this.showdownData = {
+      players: [{
+        seatIndex: winner.seatIndex,
+        username: winner.username,
+        cards: null, // Winner doesn't have to show
+        handDescription: null,
+        isWinner: true,
+        mustShow: false,
+        canMuck: false,
+        hasShown: false,
+        hasMucked: false
+      }],
+      winners: [{
+        seatIndex: winner.seatIndex,
+        username: winner.username,
+        handDescription: null,
+        potWon: potWon
+      }],
+      pot: potWon,
+      potShare: potWon,
+      noShowdown: true // Flag indicating everyone else folded
+    };
+    
+    // Trigger win event
+    if (this.onAutoAdvance) {
+      this.onAutoAdvance('hand-won', this.showdownData);
+    }
     
     // Auto-start next hand after delay if game is running
     if (this.isGameRunning && !this.isPaused) {
       setTimeout(() => {
         if (this.isGameRunning && !this.isPaused) {
+          // Clear showdown data
+          this.showdownData = null;
+          
           // Remove busted players before starting next hand
           const bustedPlayers = this.removeBustedPlayers();
           if (bustedPlayers.length > 0 && this.onAutoAdvance) {
@@ -822,7 +855,7 @@ export class GameRoom {
             }
           }
         }
-      }, 3000);
+      }, 4000); // 4 seconds before next hand
     }
   }
 
@@ -1053,19 +1086,107 @@ export class GameRoom {
     
     const activePlayers = this.getActivePlayers();
     
-    // For now, first active player wins (proper hand evaluation TODO)
-    // In a real implementation, you'd evaluate poker hands here
-    if (activePlayers.length > 0) {
-      // Simple: split pot or give to first player
-      const winner = activePlayers[0];
-      winner.bankroll += this.pot;
-      this.pot = 0;
+    if (activePlayers.length === 0) {
+      return;
+    }
+    
+    // Evaluate all active players' hands
+    const playerHands = activePlayers.map(player => {
+      const handResult = evaluateHand(player.cards, this.communityCards);
+      return {
+        player,
+        cards: player.cards,
+        handRank: handResult?.rank || 0,
+        handDescription: handResult?.description || 'Unknown',
+        highCards: handResult?.highCards || []
+      };
+    });
+    
+    // Sort by hand rank (highest first), then by high cards
+    playerHands.sort((a, b) => {
+      if (b.handRank !== a.handRank) return b.handRank - a.handRank;
+      // Compare high cards
+      for (let i = 0; i < Math.min(a.highCards.length, b.highCards.length); i++) {
+        if (b.highCards[i] !== a.highCards[i]) return b.highCards[i] - a.highCards[i];
+      }
+      return 0;
+    });
+    
+    // Find winners (could be multiple if tied)
+    const bestHand = playerHands[0];
+    const winners = playerHands.filter(ph => 
+      ph.handRank === bestHand.handRank &&
+      JSON.stringify(ph.highCards) === JSON.stringify(bestHand.highCards)
+    );
+    
+    // Calculate pot share for each winner
+    const potShare = Math.floor(this.pot / winners.length);
+    const remainder = this.pot % winners.length;
+    
+    winners.forEach((winnerData, index) => {
+      // First winner gets remainder (for odd splits)
+      winnerData.player.bankroll += potShare + (index === 0 ? remainder : 0);
+    });
+    
+    // Determine which players must show and who can muck
+    // Rules: Last aggressor must show first. If no aggressor (checked to showdown), 
+    // first player clockwise from dealer shows. Losing players can muck.
+    const mustShow = new Set();
+    const canMuck = new Set();
+    
+    // Winners must always show
+    winners.forEach(w => mustShow.add(w.player.seatIndex));
+    
+    // Last aggressor (if any) must show
+    if (this.lastRaiser !== null && !mustShow.has(this.lastRaiser)) {
+      mustShow.add(this.lastRaiser);
+    }
+    
+    // Non-winners can choose to muck
+    playerHands.forEach(ph => {
+      if (!mustShow.has(ph.player.seatIndex)) {
+        canMuck.add(ph.player.seatIndex);
+      }
+    });
+    
+    // Store showdown data for broadcasting
+    this.showdownData = {
+      players: playerHands.map(ph => ({
+        seatIndex: ph.player.seatIndex,
+        username: ph.player.username,
+        cards: mustShow.has(ph.player.seatIndex) ? ph.cards : null, // Only reveal if must show
+        handDescription: mustShow.has(ph.player.seatIndex) ? ph.handDescription : null,
+        handRank: ph.handRank,
+        isWinner: winners.some(w => w.player.seatIndex === ph.player.seatIndex),
+        mustShow: mustShow.has(ph.player.seatIndex),
+        canMuck: canMuck.has(ph.player.seatIndex),
+        hasShown: mustShow.has(ph.player.seatIndex), // Track if they've voluntarily shown
+        hasMucked: false
+      })),
+      winners: winners.map(w => ({
+        seatIndex: w.player.seatIndex,
+        username: w.player.username,
+        handDescription: w.handDescription,
+        potWon: potShare + (winners.indexOf(w) === 0 ? remainder : 0)
+      })),
+      pot: this.pot,
+      potShare
+    };
+    
+    this.pot = 0;
+    
+    // Trigger showdown event
+    if (this.onAutoAdvance) {
+      this.onAutoAdvance('showdown', this.showdownData);
     }
 
-    // Auto-start next hand after delay if game is running
+    // Auto-start next hand after longer delay to show results
     if (this.isGameRunning && !this.isPaused) {
       setTimeout(() => {
         if (this.isGameRunning && !this.isPaused) {
+          // Clear showdown data
+          this.showdownData = null;
+          
           // Remove busted players before starting next hand
           const bustedPlayers = this.removeBustedPlayers();
           if (bustedPlayers.length > 0 && this.onAutoAdvance) {
@@ -1084,8 +1205,78 @@ export class GameRoom {
             }
           }
         }
-      }, 4000);
+      }, 6000); // Longer delay (6 seconds) to show winning hand
     }
+  }
+
+  /**
+   * Allow a player to voluntarily show their cards at showdown
+   */
+  showHand(socketId) {
+    if (this.phase !== PHASES.SHOWDOWN || !this.showdownData) {
+      return { success: false, error: 'Not at showdown' };
+    }
+    
+    const player = this.players.get(socketId);
+    if (!player || player.seatIndex === null) {
+      return { success: false, error: 'Player not found' };
+    }
+    
+    const playerShowdown = this.showdownData.players.find(p => p.seatIndex === player.seatIndex);
+    if (!playerShowdown) {
+      return { success: false, error: 'Player not in showdown' };
+    }
+    
+    if (playerShowdown.hasMucked) {
+      return { success: false, error: 'Cards already mucked' };
+    }
+    
+    // Update showdown data to reveal this player's cards
+    playerShowdown.cards = player.cards;
+    playerShowdown.handDescription = evaluateHand(player.cards, this.communityCards)?.description || 'Unknown';
+    playerShowdown.hasShown = true;
+    
+    return { 
+      success: true, 
+      seatIndex: player.seatIndex,
+      cards: player.cards,
+      handDescription: playerShowdown.handDescription
+    };
+  }
+
+  /**
+   * Allow a player to muck their cards at showdown (if they can)
+   */
+  muckHand(socketId) {
+    if (this.phase !== PHASES.SHOWDOWN || !this.showdownData) {
+      return { success: false, error: 'Not at showdown' };
+    }
+    
+    const player = this.players.get(socketId);
+    if (!player || player.seatIndex === null) {
+      return { success: false, error: 'Player not found' };
+    }
+    
+    const playerShowdown = this.showdownData.players.find(p => p.seatIndex === player.seatIndex);
+    if (!playerShowdown) {
+      return { success: false, error: 'Player not in showdown' };
+    }
+    
+    if (playerShowdown.mustShow) {
+      return { success: false, error: 'You must show your cards' };
+    }
+    
+    if (playerShowdown.hasShown) {
+      return { success: false, error: 'Cards already shown' };
+    }
+    
+    playerShowdown.hasMucked = true;
+    playerShowdown.cards = null;
+    
+    return { 
+      success: true, 
+      seatIndex: player.seatIndex
+    };
   }
 
   /**
@@ -1219,7 +1410,8 @@ export class GameRoom {
       maxPlayers: this.maxPlayers,
       smallBlind: this.smallBlind,
       bigBlind: this.bigBlind,
-      seatRequests: this.getSeatRequests()
+      seatRequests: this.getSeatRequests(),
+      showdownData: this.showdownData || null
     };
   }
 
@@ -1300,6 +1492,21 @@ export class GameRoom {
     // God mode extras
     const isGodMode = socketId === this.godModePlayer;
     
+    // Showdown options for this player
+    let showdownOptions = null;
+    if (this.phase === PHASES.SHOWDOWN && this.showdownData && player?.seatIndex !== null) {
+      const myShowdownData = this.showdownData.players.find(p => p.seatIndex === player.seatIndex);
+      if (myShowdownData) {
+        showdownOptions = {
+          canShow: !myShowdownData.hasShown && !myShowdownData.hasMucked && myShowdownData.canMuck,
+          canMuck: myShowdownData.canMuck && !myShowdownData.hasShown && !myShowdownData.hasMucked,
+          mustShow: myShowdownData.mustShow,
+          hasShown: myShowdownData.hasShown,
+          hasMucked: myShowdownData.hasMucked
+        };
+      }
+    }
+    
     return {
       ...publicState,
       myCards: player?.cards || [],
@@ -1310,6 +1517,7 @@ export class GameRoom {
       myPendingRequest,
       myHandDescription,
       myHandRank,
+      showdownOptions,
       // 🃏 God mode data
       isGodMode,
       allPlayerCards: isGodMode ? this.getAllPlayerCards() : null,

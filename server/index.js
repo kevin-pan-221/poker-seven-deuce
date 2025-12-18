@@ -482,6 +482,56 @@ io.on('connection', (socket) => {
     callback(result);
   });
 
+  /**
+   * Show hand at showdown (optional)
+   */
+  socket.on('show-hand', (_, callback) => {
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.showHand(socket.id);
+    
+    if (result.success) {
+      const player = room.players.get(socket.id);
+      broadcastRoomUpdate(roomId, 'player-showed-hand', {
+        seatIndex: result.seatIndex,
+        username: player?.username,
+        cards: result.cards,
+        handDescription: result.handDescription
+      });
+    }
+
+    callback(result);
+  });
+
+  /**
+   * Muck hand at showdown
+   */
+  socket.on('muck-hand', (_, callback) => {
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.muckHand(socket.id);
+    
+    if (result.success) {
+      const player = room.players.get(socket.id);
+      broadcastRoomUpdate(roomId, 'player-mucked', {
+        seatIndex: result.seatIndex,
+        username: player?.username
+      });
+    }
+
+    callback(result);
+  });
+
   // ============================================
   // 🃏 God Mode Events (Secret!)
   // ============================================
