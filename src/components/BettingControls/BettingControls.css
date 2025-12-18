@@ -1,0 +1,236 @@
+/**
+ * BettingControls Styles
+ * 8-bit retro styled betting interface
+ */
+
+.betting-controls {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  border: 3px solid #ffd700;
+  border-radius: 8px;
+  min-height: 80px;
+}
+
+.betting-controls--waiting {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: #666;
+}
+
+.betting-controls__waiting-text {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.6rem;
+  color: #888;
+  text-transform: uppercase;
+}
+
+/* Action Buttons */
+.betting-controls__actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.betting-controls__btn {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 0.6rem;
+  padding: 0.75rem 1.25rem;
+  border: 3px solid;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.1s ease;
+  min-width: 80px;
+}
+
+.betting-controls__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.5);
+}
+
+.betting-controls__btn:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Fold button */
+.betting-controls__btn--fold {
+  background: linear-gradient(180deg, #666 0%, #444 100%);
+  border-color: #888;
+  color: #fff;
+}
+
+.betting-controls__btn--fold:hover {
+  background: linear-gradient(180deg, #777 0%, #555 100%);
+}
+
+/* Check button */
+.betting-controls__btn--check {
+  background: linear-gradient(180deg, #4a90d9 0%, #357abd 100%);
+  border-color: #5ba3ec;
+  color: #fff;
+}
+
+.betting-controls__btn--check:hover {
+  background: linear-gradient(180deg, #5ba3ec 0%, #4a90d9 100%);
+}
+
+/* Call button */
+.betting-controls__btn--call {
+  background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+  border-color: #66bb6a;
+  color: #fff;
+}
+
+.betting-controls__btn--call:hover {
+  background: linear-gradient(180deg, #66bb6a 0%, #4caf50 100%);
+}
+
+/* Raise/Bet button */
+.betting-controls__btn--raise {
+  background: linear-gradient(180deg, #ffd700 0%, #daa520 100%);
+  border-color: #ffe44d;
+  color: #000;
+}
+
+.betting-controls__btn--raise:hover {
+  background: linear-gradient(180deg, #ffe44d 0%, #ffd700 100%);
+}
+
+/* Cancel button */
+.betting-controls__btn--cancel {
+  background: linear-gradient(180deg, #666 0%, #444 100%);
+  border-color: #888;
+  color: #fff;
+}
+
+/* Confirm button */
+.betting-controls__btn--confirm {
+  background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+  border-color: #66bb6a;
+  color: #fff;
+}
+
+/* Slider Panel */
+.betting-controls__slider-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 400px;
+}
+
+.betting-controls__amount-display {
+  display: flex;
+  justify-content: center;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.betting-controls__amount-label {
+  font-family: 'VT323', monospace;
+  font-size: 1.2rem;
+  color: #ccc;
+}
+
+.betting-controls__amount-value {
+  font-family: 'Press Start 2P', cursive;
+  font-size: 1rem;
+  color: #ffd700;
+}
+
+/* Slider styling */
+.betting-controls__slider {
+  width: 100%;
+  height: 20px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: linear-gradient(to right, #1a472a, #2d5a3d);
+  border: 2px solid #3d7a4d;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.betting-controls__slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(180deg, #ffd700 0%, #daa520 100%);
+  border: 3px solid #ffe44d;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.betting-controls__slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  background: linear-gradient(180deg, #ffd700 0%, #daa520 100%);
+  border: 3px solid #ffe44d;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+/* Quick Bet Buttons */
+.betting-controls__quick-bets {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.betting-controls__quick-btn {
+  font-family: 'VT323', monospace;
+  font-size: 1rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid #666;
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.betting-controls__quick-btn:hover {
+  background: rgba(255, 215, 0, 0.2);
+  border-color: #ffd700;
+  color: #ffd700;
+}
+
+.betting-controls__quick-btn--allin {
+  background: rgba(255, 0, 0, 0.2);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+
+.betting-controls__quick-btn--allin:hover {
+  background: rgba(255, 0, 0, 0.4);
+  border-color: #ff6666;
+  color: #ff6666;
+}
+
+/* Slider Actions */
+.betting-controls__slider-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .betting-controls {
+    padding: 0.75rem;
+  }
+  
+  .betting-controls__btn {
+    font-size: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    min-width: 60px;
+  }
+  
+  .betting-controls__quick-btn {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.4rem;
+  }
+}

@@ -1,0 +1,196 @@
+/* 
+ * sevendeuce - Global Styles
+ * 8-bit / pixel-art inspired minimalist poker table
+ */
+
+/* Import pixel font from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+/* CSS Custom Properties - Color Palette */
+:root {
+  /* Background colors */
+  --bg-dark: #1a1a2e;
+  --bg-darker: #0f0f1a;
+  
+  /* Table colors */
+  --table-green: #2d5a27;
+  --table-green-light: #3d7a37;
+  --table-border: #1a3a17;
+  --table-felt: #234d20;
+  
+  /* Text colors */
+  --text-primary: #f0f0e8;
+  --text-secondary: #a0a098;
+  --text-muted: #606058;
+  
+  /* Accent colors */
+  --accent-gold: #ffd700;
+  --accent-red: #e74c3c;
+  --accent-blue: #3498db;
+  --accent-chip-red: #c0392b;
+  --accent-chip-blue: #2980b9;
+  --accent-chip-green: #27ae60;
+  --accent-chip-black: #2c3e50;
+  --accent-chip-white: #ecf0f1;
+  
+  /* Card colors */
+  --card-white: #fafafa;
+  --card-shadow: rgba(0, 0, 0, 0.3);
+  --suit-red: #e74c3c;
+  --suit-black: #1a1a1a;
+  
+  /* Player highlight */
+  --player-local: #4a90d9;
+  --player-local-glow: rgba(74, 144, 217, 0.4);
+  
+  /* Fonts */
+  --font-pixel: 'Press Start 2P', cursive;
+  --font-body: 'VT323', monospace;
+  
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+}
+
+/* Reset & Base Styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 1.25rem;
+  background-color: var(--bg-dark);
+  color: var(--text-primary);
+  min-height: 100vh;
+  line-height: 1.4;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Pixel-style scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--table-green);
+  border: 2px solid var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--table-green-light);
+}
+
+/* Utility Classes */
+.pixel-text {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.body-text {
+  font-family: var(--font-body);
+}
+
+/* Pixel-style button base */
+.pixel-btn {
+  font-family: var(--font-pixel);
+  font-size: 0.625rem;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: var(--table-green);
+  color: var(--text-primary);
+  border: 3px solid;
+  border-color: var(--table-green-light) var(--table-border) var(--table-border) var(--table-green-light);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.1s ease;
+}
+
+.pixel-btn:hover {
+  background: var(--table-green-light);
+}
+
+.pixel-btn:active {
+  border-color: var(--table-border) var(--table-green-light) var(--table-green-light) var(--table-border);
+  transform: translateY(2px);
+}
+
+.pixel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Animations */
+@keyframes pixel-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pixel-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pixel-pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes chip-bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.animate-fade-in {
+  animation: pixel-fade-in 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: pixel-slide-up 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pixel-pulse 2s ease-in-out infinite;
+}

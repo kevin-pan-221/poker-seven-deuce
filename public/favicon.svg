@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- 7 of Spades Card (back) -->
+  <rect x="8" y="8" width="28" height="40" rx="3" fill="#fafafa" stroke="#1a1a1a" stroke-width="2" transform="rotate(-8 22 28)"/>
+  <text x="14" y="28" font-family="monospace" font-size="14" font-weight="bold" fill="#1a1a1a" transform="rotate(-8 22 28)">7</text>
+  <text x="14" y="40" font-family="serif" font-size="12" fill="#1a1a1a" transform="rotate(-8 22 28)">♠</text>
+  
+  <!-- 2 of Clubs Card (front) -->
+  <rect x="28" y="16" width="28" height="40" rx="3" fill="#fafafa" stroke="#1a1a1a" stroke-width="2" transform="rotate(8 42 36)"/>
+  <text x="34" y="36" font-family="monospace" font-size="14" font-weight="bold" fill="#1a1a1a" transform="rotate(8 42 36)">2</text>
+  <text x="34" y="48" font-family="serif" font-size="12" fill="#1a1a1a" transform="rotate(8 42 36)">♣</text>
+</svg>

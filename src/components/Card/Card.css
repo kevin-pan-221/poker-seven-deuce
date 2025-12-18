@@ -1,0 +1,199 @@
+/**
+ * Card Styles
+ * Pixel-art playing card
+ */
+
+.card {
+  position: relative;
+  background: var(--card-white);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 
+    2px 2px 0 var(--card-shadow),
+    0 4px 8px rgba(0, 0, 0, 0.3);
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+}
+
+/* Card colors */
+.card--red .card__rank,
+.card--red .card__suit,
+.card--red .card__suit-large {
+  color: var(--suit-red);
+}
+
+.card--black .card__rank,
+.card--black .card__suit,
+.card--black .card__suit-large {
+  color: var(--suit-black);
+}
+
+/* Corner info */
+.card__corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+
+.card__corner--top {
+  align-self: flex-start;
+}
+
+.card__corner--bottom {
+  align-self: flex-end;
+  transform: rotate(180deg);
+}
+
+.card__rank {
+  font-family: var(--font-pixel);
+  font-weight: bold;
+}
+
+.card__suit {
+  font-size: inherit;
+}
+
+/* Center suit */
+.card__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.card__suit-large {
+  font-size: inherit;
+  opacity: 0.9;
+}
+
+/* Card back */
+.card--back {
+  background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+  border: 2px solid #34495e;
+}
+
+.card__back-pattern {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 4px,
+      rgba(255,255,255,0.03) 4px,
+      rgba(255,255,255,0.03) 8px
+    );
+  border-radius: 4px;
+}
+
+.card__back-logo {
+  font-family: var(--font-pixel);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+/* Size variants */
+.card--small {
+  width: 36px;
+  height: 50px;
+  padding: 3px;
+}
+
+.card--small .card__rank {
+  font-size: 8px;
+}
+
+.card--small .card__suit {
+  font-size: 6px;
+}
+
+.card--small .card__suit-large {
+  font-size: 14px;
+}
+
+.card--small .card__back-logo {
+  font-size: 5px;
+}
+
+.card--medium {
+  width: 52px;
+  height: 72px;
+  padding: 4px;
+}
+
+.card--medium .card__rank {
+  font-size: 11px;
+}
+
+.card--medium .card__suit {
+  font-size: 9px;
+}
+
+.card--medium .card__suit-large {
+  font-size: 20px;
+}
+
+.card--medium .card__back-logo {
+  font-size: 7px;
+}
+
+.card--large {
+  width: 70px;
+  height: 98px;
+  padding: 6px;
+}
+
+.card--large .card__rank {
+  font-size: 14px;
+}
+
+.card--large .card__suit {
+  font-size: 12px;
+}
+
+.card--large .card__suit-large {
+  font-size: 28px;
+}
+
+.card--large .card__back-logo {
+  font-size: 9px;
+}
+
+/* Dealing animation */
+@keyframes deal-card {
+  from {
+    opacity: 0;
+    transform: translateY(-30px) rotate(-10deg) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(0) scale(1);
+  }
+}
+
+.card--dealing {
+  animation: deal-card 0.3s ease-out forwards;
+}
+
+/* Card group styling */
+.card-group {
+  display: flex;
+  gap: 4px;
+}
+
+.card-group--overlap .card:not(:first-child) {
+  margin-left: -20px;
+}
+
+.card-group--overlap .card:hover {
+  z-index: 10;
+}

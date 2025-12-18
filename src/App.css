@@ -1,0 +1,65 @@
+/**
+ * App Component Styles
+ * Main layout styles for sevendeuce
+ */
+
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: 
+    radial-gradient(
+      ellipse at center,
+      var(--bg-dark) 0%,
+      var(--bg-darker) 100%
+    );
+}
+
+/* Main content area */
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-lg);
+  gap: var(--spacing-lg);
+}
+
+/* Controls area */
+.app__controls {
+  display: flex;
+  gap: var(--spacing-md);
+  justify-content: center;
+}
+
+.app__leave-btn {
+  background: var(--accent-chip-red);
+  border-color: #e74c3c #8e2a1f #8e2a1f #e74c3c;
+}
+
+.app__leave-btn:hover {
+  background: #c0392b;
+}
+
+/* Footer */
+.app__footer {
+  padding: var(--spacing-md);
+  text-align: center;
+  border-top: 2px solid var(--table-border);
+  background: var(--bg-darker);
+}
+
+.app__footer-text {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .app__main {
+    padding: var(--spacing-md);
+  }
+}

@@ -1,0 +1,215 @@
+/**
+ * PokerTable Styles
+ * 8-bit styled poker table with oval shape
+ */
+
+.poker-table-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-xl);
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* Table name header */
+.poker-table__name {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  letter-spacing: 2px;
+}
+
+/* Main table wrapper - contains felt and seats */
+.poker-table {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  max-width: 800px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Table felt - the playing surface */
+.poker-table__felt {
+  width: 75%;
+  height: 70%;
+  background: linear-gradient(
+    145deg,
+    var(--table-green-light) 0%,
+    var(--table-green) 30%,
+    var(--table-felt) 70%,
+    var(--table-green) 100%
+  );
+  border-radius: 50%;
+  border: 8px solid var(--table-border);
+  box-shadow:
+    inset 0 0 60px rgba(0, 0, 0, 0.3),
+    0 8px 0 var(--bg-darker),
+    0 12px 20px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  position: relative;
+}
+
+/* Felt texture overlay */
+.poker-table__felt::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-image: 
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    );
+  pointer-events: none;
+}
+
+/* Rail/border around table */
+.poker-table__felt::after {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  border: 4px solid rgba(139, 90, 43, 0.6);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.1),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+}
+
+/* Center logo */
+.poker-table__center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.15;
+}
+
+.poker-table__logo {
+  font-family: var(--font-pixel);
+  font-size: 1.5rem;
+  color: var(--text-primary);
+  letter-spacing: 4px;
+  white-space: nowrap;
+}
+
+/* Pot display */
+.poker-table__pot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  z-index: 1;
+}
+
+.poker-table__pot-label {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+}
+
+.poker-table__pot-amount {
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  color: var(--accent-gold);
+  font-weight: bold;
+}
+
+/* Community Cards */
+.poker-table__community-cards {
+  display: flex;
+  gap: var(--spacing-xs);
+  z-index: 1;
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+}
+
+.poker-table__card-slot {
+  width: 52px;
+  height: 72px;
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+}
+
+/* Phase indicator */
+.poker-table__phase {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  color: var(--accent-gold);
+  letter-spacing: 2px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  z-index: 1;
+}
+
+/* Table info bar */
+.poker-table__info {
+  display: flex;
+  gap: var(--spacing-lg);
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: rgba(15, 15, 26, 0.8);
+  border: 2px solid var(--table-border);
+  border-radius: 4px;
+}
+
+.poker-table__info-item {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-secondary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .poker-table-container {
+    padding: var(--spacing-md);
+  }
+  
+  .poker-table__felt {
+    width: 85%;
+    height: 75%;
+    border-width: 6px;
+  }
+  
+  .poker-table__logo {
+    font-size: 1rem;
+  }
+  
+  .poker-table__pot-amount {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .poker-table__felt {
+    width: 90%;
+    height: 80%;
+    border-width: 4px;
+  }
+  
+  .poker-table__info {
+    flex-direction: column;
+    gap: var(--spacing-xs);
+    text-align: center;
+  }
+}

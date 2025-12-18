@@ -1,0 +1,81 @@
+/**
+ * ChipStack Styles
+ * Pixel-art poker chip stack
+ */
+
+.chip-stack {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+/* Individual chip */
+.chip {
+  position: absolute;
+  border-radius: 50%;
+  box-shadow: 
+    0 2px 0 rgba(0, 0, 0, 0.3),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    inset 0 2px 0 rgba(255, 255, 255, 0.2);
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+}
+
+/* Chip colors */
+.chip--red {
+  background: var(--accent-chip-red);
+}
+
+.chip--blue {
+  background: var(--accent-chip-blue);
+}
+
+.chip--green {
+  background: var(--accent-chip-green);
+}
+
+.chip--black {
+  background: var(--accent-chip-black);
+}
+
+.chip--white {
+  background: var(--accent-chip-white);
+  border-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Size variants */
+.chip-stack--small {
+  width: 16px;
+  height: 24px;
+}
+
+.chip-stack--small .chip {
+  width: 16px;
+  height: 16px;
+}
+
+.chip-stack--medium {
+  width: 24px;
+  height: 36px;
+}
+
+.chip-stack--medium .chip {
+  width: 24px;
+  height: 24px;
+}
+
+.chip-stack--large {
+  width: 32px;
+  height: 48px;
+}
+
+.chip-stack--large .chip {
+  width: 32px;
+  height: 32px;
+}
+
+/* Hover animation */
+.chip-stack:hover .chip {
+  animation: chip-bounce 0.3s ease;
+  animation-delay: calc(var(--chip-index, 0) * 0.05s);
+}

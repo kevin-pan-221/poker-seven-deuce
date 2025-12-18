@@ -1,0 +1,72 @@
+/**
+ * Header Styles
+ * 8-bit styled site header
+ */
+
+.header {
+  width: 100%;
+  background: var(--bg-darker);
+  border-bottom: 3px solid var(--table-border);
+  padding: var(--spacing-sm) var(--spacing-lg);
+}
+
+.header__content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header__logo {
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.header__logo:hover {
+  opacity: 0.9;
+}
+
+.header__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.header__player-info {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(45, 90, 39, 0.3);
+  border: 2px solid var(--table-green);
+  border-radius: 4px;
+}
+
+.header__player-icon {
+  font-size: 1rem;
+}
+
+.header__player-name {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  color: var(--text-primary);
+  text-transform: uppercase;
+}
+
+.header__status {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-muted);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .header {
+    padding: var(--spacing-xs) var(--spacing-md);
+  }
+  
+  .header__player-name {
+    display: none;
+  }
+}
