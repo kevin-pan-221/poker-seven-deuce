@@ -22,7 +22,8 @@ function BettingControls({
   pot = 0,
   myBankroll = 0,
   onAction,
-  isMyTurn = false 
+  isMyTurn = false,
+  disabled = false
 }) {
   const [betAmount, setBetAmount] = useState(minRaise);
   const [showSlider, setShowSlider] = useState(false);
@@ -86,24 +87,24 @@ function BettingControls({
 
   if (!isMyTurn || validActions.length === 0) {
     return (
-      <div className="betting-controls betting-controls--waiting">
+      <div className="betting-controls betting-controls--waiting" role="status" aria-live="polite">
         <span className="betting-controls__waiting-text">
-          {isMyTurn ? 'Loading...' : 'Waiting for your turn...'}
+          {isMyTurn ? 'Loading actions...' : 'Waiting for your turn...'}
         </span>
       </div>
     );
   }
 
   return (
-    <div className="betting-controls">
+    <div className="betting-controls" role="group" aria-label="Betting controls">
       {showSlider ? (
         // Bet/Raise amount selection
-        <div className="betting-controls__slider-panel">
+        <div className="betting-controls__slider-panel" role="group" aria-label="Bet amount selector">
           <div className="betting-controls__amount-display">
-            <span className="betting-controls__amount-label">
+            <span className="betting-controls__amount-label" id="bet-amount-label">
               {canBet ? 'Bet' : 'Raise to'}:
             </span>
-            <span className="betting-controls__amount-value">${betAmount}</span>
+            <span className="betting-controls__amount-value" aria-live="polite">${betAmount}</span>
           </div>
           
           <input
@@ -113,36 +114,51 @@ function BettingControls({
             max={myBankroll}
             value={betAmount}
             onChange={(e) => setBetAmount(Number(e.target.value))}
+            aria-labelledby="bet-amount-label"
+            aria-valuemin={minRaise}
+            aria-valuemax={myBankroll}
+            aria-valuenow={betAmount}
+            disabled={disabled}
           />
           
-          <div className="betting-controls__quick-bets">
+          <div className="betting-controls__quick-bets" role="group" aria-label="Quick bet amounts">
             <button 
               className="betting-controls__quick-btn"
               onClick={() => handleQuickBet(0.33)}
+              aria-label="Bet one third of pot"
+              disabled={disabled}
             >
               1/3
             </button>
             <button 
               className="betting-controls__quick-btn"
               onClick={() => handleQuickBet(0.5)}
+              aria-label="Bet half of pot"
+              disabled={disabled}
             >
               1/2
             </button>
             <button 
               className="betting-controls__quick-btn"
               onClick={() => handleQuickBet(0.75)}
+              aria-label="Bet three quarters of pot"
+              disabled={disabled}
             >
               3/4
             </button>
             <button 
               className="betting-controls__quick-btn"
               onClick={() => handleQuickBet('pot')}
+              aria-label="Bet full pot"
+              disabled={disabled}
             >
               Pot
             </button>
             <button 
               className="betting-controls__quick-btn betting-controls__quick-btn--allin"
               onClick={() => handleQuickBet('allin')}
+              aria-label="Go all in"
+              disabled={disabled}
             >
               All-In
             </button>
@@ -152,12 +168,14 @@ function BettingControls({
             <button 
               className="betting-controls__btn betting-controls__btn--cancel"
               onClick={handleCancelBet}
+              disabled={disabled}
             >
               Cancel
             </button>
             <button 
               className="betting-controls__btn betting-controls__btn--confirm"
               onClick={handleBetOrRaise}
+              disabled={disabled}
             >
               {canBet ? 'Bet' : 'Raise'} ${betAmount}
             </button>
@@ -165,11 +183,13 @@ function BettingControls({
         </div>
       ) : (
         // Main action buttons
-        <div className="betting-controls__actions">
+        <div className="betting-controls__actions" role="group" aria-label="Available actions">
           {canFold && (
             <button 
               className="betting-controls__btn betting-controls__btn--fold"
               onClick={handleFold}
+              aria-label="Fold your hand"
+              disabled={disabled}
             >
               Fold
             </button>
@@ -179,6 +199,8 @@ function BettingControls({
             <button 
               className="betting-controls__btn betting-controls__btn--check"
               onClick={handleCheck}
+              aria-label="Check, no bet"
+              disabled={disabled}
             >
               Check
             </button>
@@ -188,6 +210,8 @@ function BettingControls({
             <button 
               className="betting-controls__btn betting-controls__btn--call"
               onClick={handleCall}
+              aria-label={`Call ${toCall} dollars`}
+              disabled={disabled}
             >
               Call ${toCall}
             </button>
@@ -197,6 +221,8 @@ function BettingControls({
             <button 
               className="betting-controls__btn betting-controls__btn--raise"
               onClick={handleBetOrRaise}
+              aria-label={canBet ? 'Open bet slider' : 'Open raise slider'}
+              disabled={disabled}
             >
               {canBet ? 'Bet' : 'Raise'}
             </button>

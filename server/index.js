@@ -1,3 +1,4 @@
+/* global process */
 /**
  * sevendeuce Server
  * Express + Socket.io backend for multiplayer poker with betting
@@ -75,6 +76,28 @@ const playerSessions = new Map(); // sessionId -> { socketId, username, roomId }
 // 🃏 God mode secret key - change this to something only you know!
 const GOD_MODE_SECRET = process.env.GOD_MODE_SECRET;
 
+// Periodic cleanup of rate limits (every 5 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of rateLimits) {
+    if (now - record.windowStart > RATE_LIMIT_WINDOW * 2) {
+      rateLimits.delete(ip);
+    }
+  }
+}, 300000);
+
+// Periodic cleanup of stale rooms (every 10 minutes)
+setInterval(() => {
+  const now = Date.now();
+  for (const [roomId, room] of rooms) {
+    // Remove rooms that have been empty for over 30 minutes
+    if (room.players.size === 0 && now - room.createdAt > 1800000) {
+      rooms.delete(roomId);
+      console.log(`[${new Date().toISOString()}] Cleaned up stale room: ${roomId}`);
+    }
+  }
+}, 600000);
+
 // ============================================
 // REST API Routes
 // ============================================
@@ -87,7 +110,7 @@ app.get('/api/health', (req, res) => {
 // List public rooms
 app.get('/api/rooms', (req, res) => {
   const roomList = [];
-  for (const [id, room] of rooms) {
+  for (const [, room] of rooms) {
     roomList.push({
       id: room.id,
       name: room.name,
@@ -100,16 +123,61 @@ app.get('/api/rooms', (req, res) => {
   res.json(roomList);
 });
 
+// Input sanitization helper
+const sanitizeInput = (str, maxLength = 50) => {
+  if (typeof str !== 'string') return '';
+  // Remove HTML tags, trim, and limit length
+  return str.replace(/<[^>]*>/g, '').trim().slice(0, maxLength);
+};
+
+// Rate limiting - simple in-memory store
+const rateLimits = new Map();
+const RATE_LIMIT_WINDOW = 60000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30;
+
+const checkRateLimit = (ip) => {
+  const now = Date.now();
+  const record = rateLimits.get(ip) || { count: 0, windowStart: now };
+  
+  if (now - record.windowStart > RATE_LIMIT_WINDOW) {
+    record.count = 1;
+    record.windowStart = now;
+  } else {
+    record.count++;
+  }
+  
+  rateLimits.set(ip, record);
+  return record.count <= RATE_LIMIT_MAX_REQUESTS;
+};
+
 // Create a new room
 app.post('/api/rooms', (req, res) => {
+  const ip = req.ip || req.connection.remoteAddress;
+  if (!checkRateLimit(ip)) {
+    console.warn(`Rate limit exceeded for IP: ${ip}`);
+    return res.status(429).json({ error: 'Too many requests. Please try again later.' });
+  }
+
   const { name, hostId, maxPlayers = 8 } = req.body;
   
-  if (!name || !hostId) {
-    return res.status(400).json({ error: 'Name and hostId required' });
+  // Validate and sanitize inputs
+  const sanitizedName = sanitizeInput(name, 30);
+  const sanitizedHostId = sanitizeInput(hostId, 100);
+  
+  if (!sanitizedName || sanitizedName.length < 1) {
+    return res.status(400).json({ error: 'Please enter a valid game name' });
+  }
+  
+  if (!sanitizedHostId) {
+    return res.status(400).json({ error: 'Invalid host ID' });
+  }
+  
+  if (maxPlayers < 2 || maxPlayers > 10) {
+    return res.status(400).json({ error: 'Players must be between 2 and 10' });
   }
 
   const roomId = uuidv4().slice(0, 8); // Short ID for easy sharing
-  const room = new GameRoom(roomId, name, hostId, maxPlayers);
+  const room = new GameRoom(roomId, sanitizedName, sanitizedHostId, maxPlayers);
   
   // Set up auto-advance callback for this room
   room.onAutoAdvance = (eventType, data) => {
@@ -118,7 +186,7 @@ app.post('/api/rooms', (req, res) => {
   
   rooms.set(roomId, room);
 
-  console.log(`Room created: ${roomId} - ${name}`);
+  console.log(`[${new Date().toISOString()}] Room created: ${roomId} - ${sanitizedName} by ${sanitizedHostId.slice(0, 8)}...`);
 
   res.json({
     roomId,
@@ -151,7 +219,7 @@ function broadcastRoomUpdate(roomId, eventType, data) {
   io.to(roomId).emit('room-state', room.getPublicState());
   
   // Send private state to each player
-  for (const [socketId, player] of room.players) {
+  for (const [socketId] of room.players) {
     io.to(socketId).emit('player-state', room.getPlayerState(socketId));
   }
   
@@ -172,53 +240,74 @@ io.on('connection', (socket) => {
    * Join a room
    */
   socket.on('join-room', ({ roomId, username, sessionId }, callback) => {
-    const room = rooms.get(roomId);
+    // Validate inputs
+    const sanitizedUsername = sanitizeInput(username, 15);
+    const sanitizedRoomId = sanitizeInput(roomId, 20);
+    const sanitizedSessionId = sanitizeInput(sessionId, 100);
+    
+    if (!sanitizedUsername || sanitizedUsername.length < 1) {
+      return callback({ success: false, error: 'Please enter a valid username (1-15 characters)' });
+    }
+    
+    if (!sanitizedRoomId) {
+      return callback({ success: false, error: 'Invalid room code' });
+    }
+    
+    const room = rooms.get(sanitizedRoomId);
     
     if (!room) {
-      return callback({ success: false, error: 'Room not found' });
+      return callback({ success: false, error: 'Room not found. Please check the code and try again.' });
     }
 
     // Check for duplicate session in same room
-    const existingSession = playerSessions.get(sessionId);
-    if (existingSession && existingSession.roomId === roomId) {
+    const existingSession = playerSessions.get(sanitizedSessionId);
+    if (existingSession && existingSession.roomId === sanitizedRoomId) {
       return callback({ 
         success: false, 
         error: 'You are already in this game in another tab' 
       });
     }
+    
+    // Check if room is full
+    if (room.players.size >= room.maxPlayers * 2) { // Allow spectators up to 2x
+      return callback({ 
+        success: false, 
+        error: 'Room is currently full. Please try again later.' 
+      });
+    }
 
     // Add player to room
-    const result = room.addPlayer(socket.id, username);
+    const result = room.addPlayer(socket.id, sanitizedUsername);
     if (!result.success) {
       return callback(result);
     }
 
     // Check if this player is the original host (by sessionId)
     // and update hostId to their socketId
-    if (room.hostId === sessionId || room.originalHostSessionId === sessionId) {
-      room.originalHostSessionId = sessionId; // Preserve original
+    if (room.hostId === sanitizedSessionId || room.originalHostSessionId === sanitizedSessionId) {
+      room.originalHostSessionId = sanitizedSessionId; // Preserve original
       room.hostId = socket.id;
-      console.log(`Host identified: ${username} (${socket.id})`);
+      console.log(`[${new Date().toISOString()}] Host identified: ${sanitizedUsername} (${socket.id})`);
     }
 
     // Track socket -> room mapping
-    socketRooms.set(socket.id, roomId);
+    socketRooms.set(socket.id, sanitizedRoomId);
     
     // Track session
-    playerSessions.set(sessionId, {
+    playerSessions.set(sanitizedSessionId, {
       socketId: socket.id,
-      username,
-      roomId
+      username: sanitizedUsername,
+      roomId: sanitizedRoomId
     });
-    socket.sessionId = sessionId;
+    socket.sessionId = sanitizedSessionId;
 
     // Join Socket.io room for broadcasts
-    socket.join(roomId);
+    socket.join(sanitizedRoomId);
 
-    console.log(`${username} joined room ${roomId}`);
+    console.log(`[${new Date().toISOString()}] ${sanitizedUsername} joined room ${sanitizedRoomId}`);
 
     // Broadcast updated state to all in room
-    io.to(roomId).emit('room-state', room.getPublicState());
+    io.to(sanitizedRoomId).emit('room-state', room.getPublicState());
 
     // Send player-specific state to the joiner
     callback({
@@ -630,6 +719,10 @@ function handleDisconnect(socket) {
   if (room) {
     // Check if disconnecting player is the host
     const wasHost = room.hostId === socket.id;
+    const playerInfo = room.players.get(socket.id);
+    const playerName = playerInfo?.username || 'Unknown player';
+    
+    console.log(`[${new Date().toISOString()}] Player disconnecting: ${playerName} from room ${roomId}`);
     
     room.removePlayer(socket.id);
     socket.leave(roomId);

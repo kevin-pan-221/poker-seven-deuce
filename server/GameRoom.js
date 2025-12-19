@@ -2,9 +2,8 @@
  * GameRoom - Manages a single poker table/lobby with betting
  */
 
-import { v4 as uuidv4 } from 'uuid';
 import { createDeck, shuffleDeck, dealCards } from './deck.js';
-import { evaluateHand, getHandDescription, compareHands } from './handEvaluator.js';
+import { evaluateHand } from './handEvaluator.js';
 
 // Game phases
 export const PHASES = {
@@ -101,18 +100,6 @@ export class GameRoom {
       const idx = ranks.indexOf(highRank);
       if (idx < count - 1) return null;
       return ranks.slice(idx - count + 1, idx + 1).reverse();
-    };
-    
-    // Helper to generate random filler cards that don't interfere
-    const generateFillerCard = (usedCards) => {
-      const lowRanks = ['2', '3', '4', '5', '6', '7'];
-      for (let attempts = 0; attempts < 50; attempts++) {
-        const card = { rank: randomElement(lowRanks), suit: randomSuit() };
-        if (!usedCards.some(c => c.rank === card.rank && c.suit === card.suit)) {
-          return card;
-        }
-      }
-      return null;
     };
     
     switch (handType) {
@@ -518,7 +505,7 @@ export class GameRoom {
     }
 
     // Check if player already has a pending request
-    for (const [reqId, req] of this.seatRequests) {
+    for (const [, req] of this.seatRequests) {
       if (req.socketId === socketId) {
         return { success: false, error: 'You already have a pending request' };
       }
@@ -960,7 +947,7 @@ export class GameRoom {
         break;
 
       case ACTIONS.BET:
-      case ACTIONS.RAISE:
+      case ACTIONS.RAISE: {
         const raiseAmount = amount;
         // Min-raise check: only enforce if player has enough chips
         // If player doesn't have enough for min-raise, they can still go all-in
@@ -993,6 +980,7 @@ export class GameRoom {
           actionTaken = ACTIONS.ALL_IN;
         }
         break;
+      }
         
       case ACTIONS.ALL_IN:
         betAmount = player.bankroll;

@@ -46,12 +46,15 @@ function PlayerSeat({
     <div 
       className={classNames}
       data-position={position}
+      role="region"
+      aria-label={isEmpty ? `Empty seat ${position + 1}` : `${player?.username || 'Player'}'s seat`}
     >
       {isEmpty ? (
         // Empty seat - show "Take Seat" button
         <button 
           className="player-seat__take-btn pixel-btn"
           onClick={() => onTakeSeat(position)}
+          aria-label={`Take seat ${position + 1}`}
         >
           Sit
         </button>

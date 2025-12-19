@@ -859,6 +859,87 @@
   50% { opacity: 1; }
 }
 
+/* Keyboard shortcut hints */
+.keyboard-hints {
+  position: fixed;
+  bottom: var(--spacing-md);
+  left: var(--spacing-md);
+  background: rgba(15, 15, 26, 0.9);
+  border: 2px solid var(--table-border);
+  border-radius: 4px;
+  padding: var(--spacing-sm);
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.keyboard-hints__item {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: 2px;
+}
+
+.keyboard-hints__key {
+  background: var(--bg-darker);
+  border: 1px solid var(--text-muted);
+  border-radius: 2px;
+  padding: 2px 6px;
+  font-family: var(--font-pixel);
+  font-size: 0.4rem;
+}
+
+/* Connection status indicator */
+.connection-status {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
+.connection-status__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-chip-green);
+}
+
+.connection-status__dot--disconnected {
+  background: var(--accent-red);
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 15, 26, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--table-border);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .game-info-bar {
@@ -876,5 +957,9 @@
   .showdown-panel {
     min-width: 280px;
     padding: var(--spacing-md);
+  }
+  
+  .keyboard-hints {
+    display: none; /* Hide on mobile */
   }
 }

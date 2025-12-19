@@ -3,7 +3,7 @@
  * The actual poker table with multiplayer support and betting
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './GamePage.css';
 import Header from '../../components/Header';
@@ -31,6 +31,13 @@ function GamePage() {
   const [connected, setConnected] = useState(false);
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
+  
+  // Loading states for various actions
+  const [isLoading, setIsLoading] = useState({
+    seat: false,
+    action: false,
+    game: false
+  });
   
   // Game state from server
   const [roomState, setRoomState] = useState(null);
@@ -67,6 +74,54 @@ function GamePage() {
   // Refs for tracking state changes (for sounds)
   const prevCardsRef = useRef([]);
   const prevTurnRef = useRef(null);
+  
+  // Auto-clear errors after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(''), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+  
+  // Keyboard shortcuts for betting actions
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Only handle if not typing in an input
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
+      }
+      
+      // Check if it's my turn (need to use roomState since isMyTurn is computed later)
+      const myTurn = roomState?.currentTurn === mySeatIndex && mySeatIndex !== null;
+      
+      switch (e.key.toLowerCase()) {
+        case 'f':
+          if (myTurn && validActions.includes('fold')) {
+            handleBettingAction('fold');
+          }
+          break;
+        case 'c':
+          if (myTurn) {
+            if (validActions.includes('call')) {
+              handleBettingAction('call');
+            } else if (validActions.includes('check')) {
+              handleBettingAction('check');
+            }
+          }
+          break;
+        case 'escape':
+          // Close any open modals
+          setShowBuyInModal(false);
+          setShowGodPanel(false);
+          break;
+        default:
+          break;
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [roomState?.currentTurn, mySeatIndex, validActions]);
 
   /**
    * Initialize socket connection
@@ -238,8 +293,22 @@ function GamePage() {
    */
   const handleJoinRoom = async (e) => {
     e.preventDefault();
-    if (!username.trim()) {
+    const trimmedUsername = username.trim();
+    
+    // Validate username
+    if (!trimmedUsername) {
       setError('Please enter a username');
+      return;
+    }
+    
+    if (trimmedUsername.length < 1 || trimmedUsername.length > 15) {
+      setError('Username must be 1-15 characters');
+      return;
+    }
+    
+    // Basic sanitization - remove HTML tags
+    if (/<[^>]*>/g.test(trimmedUsername)) {
+      setError('Username contains invalid characters');
       return;
     }
 
@@ -247,7 +316,7 @@ function GamePage() {
     setError('');
 
     try {
-      const result = await socketService.joinRoom(roomId, username.trim());
+      const result = await socketService.joinRoom(roomId, trimmedUsername);
       setRoomState(result.state);
       setMyCards(result.state.myCards || []);
       setMySeatIndex(result.state.mySeatIndex);
@@ -278,6 +347,14 @@ function GamePage() {
     e.preventDefault();
     if (selectedSeat === null) return;
     
+    // Validate buy-in amount
+    if (buyInAmount < 200 || buyInAmount > 100000) {
+      setError('Buy-in must be between $200 and $100,000');
+      return;
+    }
+    
+    setIsLoading(prev => ({ ...prev, seat: true }));
+    
     try {
       const result = await socketService.takeSeat(selectedSeat, buyInAmount);
       setShowBuyInModal(false);
@@ -287,7 +364,9 @@ function GamePage() {
       }
     } catch (err) {
       console.error('Failed to request seat:', err);
-      setError(err.message);
+      setError(err.message || 'Failed to request seat. Please try again.');
+    } finally {
+      setIsLoading(prev => ({ ...prev, seat: false }));
     }
   };
 
@@ -340,10 +419,13 @@ function GamePage() {
    * Start the game
    */
   const handleStartGame = async () => {
+    setIsLoading(prev => ({ ...prev, game: true }));
     try {
       await socketService.startGame();
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Failed to start game');
+    } finally {
+      setIsLoading(prev => ({ ...prev, game: false }));
     }
   };
 
@@ -384,10 +466,14 @@ function GamePage() {
    * Handle betting action
    */
   const handleBettingAction = async (action, amount = 0) => {
+    setIsLoading(prev => ({ ...prev, action: true }));
     try {
       await socketService.playerAction(action, amount);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || 'Action failed. Please try again.');
+      soundService.error();
+    } finally {
+      setIsLoading(prev => ({ ...prev, action: false }));
     }
   };
 
@@ -783,6 +869,7 @@ function GamePage() {
             myBankroll={myBankroll}
             onAction={handleBettingAction}
             isMyTurn={isMyTurn}
+            disabled={isLoading.action}
           />
         )}
 
