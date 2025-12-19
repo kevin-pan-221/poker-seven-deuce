@@ -77,124 +77,374 @@ export class GameRoom {
   
   /**
    * 🃏 Generate hole cards and community cards for a rigged hand
+   * Now with variety and opponent hands that look strong but lose!
    */
-  generateRiggedHand(handType) {
+  generateRiggedHand(handType, numOpponents = 1) {
     const suits = ['spades', 'hearts', 'diamonds', 'clubs'];
+    const ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
+    
     const randomSuit = () => suits[Math.floor(Math.random() * suits.length)];
+    const randomElement = (arr) => arr[Math.floor(Math.random() * arr.length)];
+    const shuffleArray = (arr) => {
+      const result = [...arr];
+      for (let i = result.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [result[i], result[j]] = [result[j], result[i]];
+      }
+      return result;
+    };
+    const getOtherSuits = (excludeSuit) => suits.filter(s => s !== excludeSuit);
+    const getRandomOtherSuit = (excludeSuit) => randomElement(getOtherSuits(excludeSuit));
+    
+    // Helper to get consecutive ranks for straights
+    const getConsecutiveRanks = (highRank, count = 5) => {
+      const idx = ranks.indexOf(highRank);
+      if (idx < count - 1) return null;
+      return ranks.slice(idx - count + 1, idx + 1).reverse();
+    };
+    
+    // Helper to generate random filler cards that don't interfere
+    const generateFillerCard = (usedCards) => {
+      const lowRanks = ['2', '3', '4', '5', '6', '7'];
+      for (let attempts = 0; attempts < 50; attempts++) {
+        const card = { rank: randomElement(lowRanks), suit: randomSuit() };
+        if (!usedCards.some(c => c.rank === card.rank && c.suit === card.suit)) {
+          return card;
+        }
+      }
+      return null;
+    };
     
     switch (handType) {
       case 'royal-flush': {
+        // Randomly choose which cards god gets vs board
         const suit = randomSuit();
-        return {
-          holeCards: [
-            { rank: 'A', suit },
-            { rank: 'K', suit }
-          ],
-          communityCards: [
-            { rank: 'Q', suit },
-            { rank: 'J', suit },
-            { rank: '10', suit },
-            { rank: '2', suit: suit === 'spades' ? 'hearts' : 'spades' },
-            { rank: '3', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
-          ]
-        };
+        const royalRanks = ['A', 'K', 'Q', 'J', '10'];
+        const shuffledRoyal = shuffleArray(royalRanks);
+        
+        // God gets 2 random royal cards, board gets other 3
+        const godRanks = shuffledRoyal.slice(0, 2);
+        const boardRoyal = shuffledRoyal.slice(2, 5);
+        
+        const usedCards = [];
+        const holeCards = godRanks.map(r => ({ rank: r, suit }));
+        usedCards.push(...holeCards);
+        
+        const communityCards = boardRoyal.map(r => ({ rank: r, suit }));
+        usedCards.push(...communityCards);
+        
+        // Add 2 filler cards to board (different suits to avoid giving opponents flush)
+        const otherSuits = getOtherSuits(suit);
+        communityCards.push({ rank: randomElement(['2', '3', '4', '5', '6']), suit: otherSuits[0] });
+        communityCards.push({ rank: randomElement(['7', '8', '9']), suit: otherSuits[1] });
+        usedCards.push(...communityCards.slice(3));
+        
+        // Generate opponent hands - give them lower straight flushes or flushes
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          const oppSuit = getRandomOtherSuit(suit);
+          // Give opponent a flush (strong but loses to royal)
+          const flushRanks = shuffleArray(['A', 'K', 'Q', 'J', '9', '8', '7'].filter(r => 
+            !usedCards.some(c => c.rank === r && c.suit === oppSuit)
+          ));
+          if (flushRanks.length >= 2) {
+            const oppHand = [
+              { rank: flushRanks[0], suit: oppSuit },
+              { rank: flushRanks[1], suit: oppSuit }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'straight-flush': {
         const suit = randomSuit();
-        return {
-          holeCards: [
-            { rank: '9', suit },
-            { rank: '8', suit }
-          ],
-          communityCards: [
-            { rank: '7', suit },
-            { rank: '6', suit },
-            { rank: '5', suit },
-            { rank: 'K', suit: suit === 'spades' ? 'hearts' : 'spades' },
-            { rank: '2', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
-          ]
-        };
+        // Random high card between 9 and K for straight flush (not royal)
+        const highOptions = ['9', '10', 'J', 'Q', 'K'];
+        const highRank = randomElement(highOptions);
+        const sfRanks = getConsecutiveRanks(highRank, 5);
+        
+        const shuffledSF = shuffleArray(sfRanks);
+        const godRanks = shuffledSF.slice(0, 2);
+        const boardSF = shuffledSF.slice(2, 5);
+        
+        const usedCards = [];
+        const holeCards = godRanks.map(r => ({ rank: r, suit }));
+        usedCards.push(...holeCards);
+        
+        const communityCards = boardSF.map(r => ({ rank: r, suit }));
+        usedCards.push(...communityCards);
+        
+        // Filler cards
+        const otherSuits = getOtherSuits(suit);
+        communityCards.push({ rank: randomElement(['2', '3']), suit: otherSuits[0] });
+        communityCards.push({ rank: 'A', suit: otherSuits[1] }); // Tease with an ace
+        usedCards.push(...communityCards.slice(3));
+        
+        // Opponent gets quads or full house (loses to straight flush)
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          const quadRank = randomElement(['A', 'K', 'Q', 'J'].filter(r => 
+            !usedCards.some(c => c.rank === r)
+          ));
+          if (quadRank) {
+            const availableSuits = suits.filter(s => !usedCards.some(c => c.rank === quadRank && c.suit === s));
+            if (availableSuits.length >= 2) {
+              const oppHand = [
+                { rank: quadRank, suit: availableSuits[0] },
+                { rank: quadRank, suit: availableSuits[1] }
+              ];
+              opponentHands.push(oppHand);
+              usedCards.push(...oppHand);
+            }
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'quads': {
-        return {
-          holeCards: [
-            { rank: 'A', suit: 'spades' },
-            { rank: 'A', suit: 'hearts' }
-          ],
-          communityCards: [
-            { rank: 'A', suit: 'diamonds' },
-            { rank: 'A', suit: 'clubs' },
-            { rank: 'K', suit: 'spades' },
-            { rank: '7', suit: 'hearts' },
-            { rank: '2', suit: 'diamonds' }
-          ]
-        };
+        // Random rank for quads (face cards or aces)
+        const quadRanks = ['A', 'K', 'Q', 'J', '10', '9'];
+        const quadRank = randomElement(quadRanks);
+        const shuffledSuits = shuffleArray(suits);
+        
+        const usedCards = [];
+        // God gets 2 of the quads
+        const holeCards = [
+          { rank: quadRank, suit: shuffledSuits[0] },
+          { rank: quadRank, suit: shuffledSuits[1] }
+        ];
+        usedCards.push(...holeCards);
+        
+        // Board has other 2 of the quads
+        const communityCards = [
+          { rank: quadRank, suit: shuffledSuits[2] },
+          { rank: quadRank, suit: shuffledSuits[3] }
+        ];
+        
+        // Add kicker and fillers - make it look like full house is possible
+        const kickerRank = randomElement(['A', 'K', 'Q'].filter(r => r !== quadRank));
+        communityCards.push({ rank: kickerRank, suit: randomSuit() });
+        communityCards.push({ rank: kickerRank, suit: getRandomOtherSuit(communityCards[2].suit) });
+        communityCards.push({ rank: randomElement(['7', '8', '9'].filter(r => r !== quadRank)), suit: randomSuit() });
+        usedCards.push(...communityCards);
+        
+        // Opponent gets full house (loses to quads)
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          const oppTripsRank = kickerRank; // They'll have trips of the kicker
+          const availableSuits = suits.filter(s => !usedCards.some(c => c.rank === oppTripsRank && c.suit === s));
+          if (availableSuits.length >= 2) {
+            const oppHand = [
+              { rank: oppTripsRank, suit: availableSuits[0] },
+              { rank: oppTripsRank, suit: availableSuits[1] }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'full-house': {
-        return {
-          holeCards: [
-            { rank: 'K', suit: 'spades' },
-            { rank: 'K', suit: 'hearts' }
-          ],
-          communityCards: [
-            { rank: 'K', suit: 'diamonds' },
-            { rank: 'Q', suit: 'clubs' },
-            { rank: 'Q', suit: 'spades' },
-            { rank: '7', suit: 'hearts' },
-            { rank: '2', suit: 'diamonds' }
-          ]
-        };
+        // Random ranks for trips and pair
+        const tripsRanks = ['A', 'K', 'Q', 'J', '10'];
+        const tripsRank = randomElement(tripsRanks);
+        const pairRanks = tripsRanks.filter(r => r !== tripsRank);
+        const pairRank = randomElement(pairRanks);
+        
+        const usedCards = [];
+        const tripsSuits = shuffleArray(suits);
+        
+        // God gets pocket pair of trips rank
+        const holeCards = [
+          { rank: tripsRank, suit: tripsSuits[0] },
+          { rank: tripsRank, suit: tripsSuits[1] }
+        ];
+        usedCards.push(...holeCards);
+        
+        // Board has third trips card and the pair
+        const pairSuits = shuffleArray(suits);
+        const communityCards = [
+          { rank: tripsRank, suit: tripsSuits[2] },
+          { rank: pairRank, suit: pairSuits[0] },
+          { rank: pairRank, suit: pairSuits[1] }
+        ];
+        
+        // Filler cards
+        const fillerRanks = ['2', '3', '4', '5', '6', '7'].filter(r => r !== tripsRank && r !== pairRank);
+        communityCards.push({ rank: randomElement(fillerRanks), suit: randomSuit() });
+        communityCards.push({ rank: randomElement(fillerRanks.filter(r => r !== communityCards[3].rank)), suit: randomSuit() });
+        usedCards.push(...communityCards);
+        
+        // Opponent gets smaller full house or flush
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          // Give them the pair rank for trips (smaller full house)
+          const availableSuits = suits.filter(s => !usedCards.some(c => c.rank === pairRank && c.suit === s));
+          if (availableSuits.length >= 2) {
+            const oppHand = [
+              { rank: pairRank, suit: availableSuits[0] },
+              { rank: pairRank, suit: availableSuits[1] }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'flush': {
         const suit = randomSuit();
-        return {
-          holeCards: [
-            { rank: 'A', suit },
-            { rank: 'J', suit }
-          ],
-          communityCards: [
-            { rank: '8', suit },
-            { rank: '5', suit },
-            { rank: '3', suit },
-            { rank: 'K', suit: suit === 'spades' ? 'hearts' : 'spades' },
-            { rank: '2', suit: suit === 'hearts' ? 'diamonds' : 'hearts' }
-          ]
-        };
+        // Random flush cards (not straight flush)
+        const flushRanks = shuffleArray(['A', 'K', 'J', '9', '7', '5', '3']);
+        const godFlush = flushRanks.slice(0, 2);
+        const boardFlush = flushRanks.slice(2, 5);
+        
+        const usedCards = [];
+        const holeCards = godFlush.map(r => ({ rank: r, suit }));
+        usedCards.push(...holeCards);
+        
+        const communityCards = boardFlush.map(r => ({ rank: r, suit }));
+        
+        // Add non-flush cards to board
+        const otherSuits = getOtherSuits(suit);
+        communityCards.push({ rank: randomElement(['Q', '10', '8']), suit: otherSuits[0] });
+        communityCards.push({ rank: randomElement(['6', '4', '2']), suit: otherSuits[1] });
+        usedCards.push(...communityCards);
+        
+        // Opponent gets straight or lower flush
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          // Give them lower flush cards
+          const oppFlushRanks = flushRanks.slice(5).filter(r => !usedCards.some(c => c.rank === r && c.suit === suit));
+          if (oppFlushRanks.length >= 2) {
+            const oppHand = [
+              { rank: oppFlushRanks[0], suit },
+              { rank: oppFlushRanks[1] || randomElement(['2', '4', '6']), suit }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          } else {
+            // Give them a straight instead
+            const oppHand = [
+              { rank: '10', suit: otherSuits[0] },
+              { rank: '9', suit: otherSuits[1] }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'straight': {
-        return {
-          holeCards: [
-            { rank: '10', suit: 'spades' },
-            { rank: '9', suit: 'hearts' }
-          ],
-          communityCards: [
-            { rank: '8', suit: 'diamonds' },
-            { rank: '7', suit: 'clubs' },
-            { rank: '6', suit: 'spades' },
-            { rank: 'K', suit: 'hearts' },
-            { rank: '2', suit: 'diamonds' }
-          ]
-        };
+        // Random straight (not wheel, not broadway)
+        const highOptions = ['9', '10', 'J', 'Q', 'K'];
+        const highRank = randomElement(highOptions);
+        const straightRanks = getConsecutiveRanks(highRank, 5);
+        
+        // Mix up suits so it's not a straight flush
+        const shuffledStraight = shuffleArray(straightRanks);
+        const godRanks = shuffledStraight.slice(0, 2);
+        const boardStraight = shuffledStraight.slice(2, 5);
+        
+        const usedCards = [];
+        const assignedSuits = shuffleArray(suits);
+        
+        const holeCards = [
+          { rank: godRanks[0], suit: assignedSuits[0] },
+          { rank: godRanks[1], suit: assignedSuits[1] }
+        ];
+        usedCards.push(...holeCards);
+        
+        const communityCards = boardStraight.map((r, i) => ({ 
+          rank: r, 
+          suit: assignedSuits[(i + 2) % 4] 
+        }));
+        
+        // Filler cards
+        communityCards.push({ rank: 'A', suit: randomSuit() });
+        communityCards.push({ rank: '2', suit: randomSuit() });
+        usedCards.push(...communityCards);
+        
+        // Opponent gets trips or two pair
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          const tripRank = randomElement(['A', 'K', 'Q'].filter(r => !straightRanks.includes(r)));
+          const availableSuits = suits.filter(s => !usedCards.some(c => c.rank === tripRank && c.suit === s));
+          if (availableSuits.length >= 2) {
+            const oppHand = [
+              { rank: tripRank, suit: availableSuits[0] },
+              { rank: tripRank, suit: availableSuits[1] }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       case 'trips': {
-        return {
-          holeCards: [
-            { rank: 'Q', suit: 'spades' },
-            { rank: 'Q', suit: 'hearts' }
-          ],
-          communityCards: [
-            { rank: 'Q', suit: 'diamonds' },
-            { rank: '9', suit: 'clubs' },
-            { rank: '5', suit: 'spades' },
-            { rank: 'K', suit: 'hearts' },
-            { rank: '2', suit: 'diamonds' }
-          ]
-        };
+        const tripsRanks = ['A', 'K', 'Q', 'J', '10'];
+        const tripsRank = randomElement(tripsRanks);
+        const tripsSuits = shuffleArray(suits);
+        
+        const usedCards = [];
+        
+        // God gets pocket pair
+        const holeCards = [
+          { rank: tripsRank, suit: tripsSuits[0] },
+          { rank: tripsRank, suit: tripsSuits[1] }
+        ];
+        usedCards.push(...holeCards);
+        
+        // Board has third card
+        const communityCards = [
+          { rank: tripsRank, suit: tripsSuits[2] }
+        ];
+        
+        // Add cards that make two pair possible for opponent
+        const pairRank1 = randomElement(tripsRanks.filter(r => r !== tripsRank));
+        const pairRank2 = randomElement(tripsRanks.filter(r => r !== tripsRank && r !== pairRank1));
+        communityCards.push({ rank: pairRank1, suit: randomSuit() });
+        communityCards.push({ rank: pairRank2, suit: randomSuit() });
+        communityCards.push({ rank: randomElement(['7', '8', '9']), suit: randomSuit() });
+        communityCards.push({ rank: randomElement(['2', '3', '4']), suit: randomSuit() });
+        usedCards.push(...communityCards);
+        
+        // Opponent gets two pair (loses to trips)
+        const opponentHands = [];
+        for (let i = 0; i < numOpponents; i++) {
+          const availableSuits1 = suits.filter(s => !usedCards.some(c => c.rank === pairRank1 && c.suit === s));
+          const availableSuits2 = suits.filter(s => !usedCards.some(c => c.rank === pairRank2 && c.suit === s));
+          if (availableSuits1.length >= 1 && availableSuits2.length >= 1) {
+            const oppHand = [
+              { rank: pairRank1, suit: availableSuits1[0] },
+              { rank: pairRank2, suit: availableSuits2[0] }
+            ];
+            opponentHands.push(oppHand);
+            usedCards.push(...oppHand);
+          }
+        }
+        
+        return { holeCards, communityCards, opponentHands };
       }
+      
       default:
         return null;
     }
-  }  /**
+  }
+
+  /**
    * Add a player to the room (not seated yet)
    */
   addPlayer(socketId, username) {
@@ -577,26 +827,35 @@ export class GameRoom {
     // Deal 2 cards to each seated player
     // 🃏 God mode: rig the hand if set
     if (this.godModePlayer && this.riggedHand) {
-      const riggedCards = this.generateRiggedHand(this.riggedHand);
+      // Count opponents for rigging their hands too
+      const opponents = seatedPlayers.filter(p => p.socketId !== this.godModePlayer);
+      const riggedCards = this.generateRiggedHand(this.riggedHand, opponents.length);
       
-      // Remove rigged cards from deck FIRST, before dealing to anyone
-      // This prevents other players from getting cards that are reserved for god mode
+      // Remove ALL rigged cards from deck FIRST
+      const allRiggedCards = [
+        ...riggedCards.holeCards,
+        ...riggedCards.communityCards,
+        ...(riggedCards.opponentHands || []).flat()
+      ];
       this.deck = this.deck.filter(c => 
-        !riggedCards.holeCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
-      );
-      this.deck = this.deck.filter(c => 
-        !riggedCards.communityCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
+        !allRiggedCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
       );
       
       // Store the rigged community cards for later
       this.riggedCommunityCards = riggedCards.communityCards;
       
+      // Deal cards - god gets rigged hand, opponents get strong losing hands
+      let opponentIndex = 0;
       for (const player of seatedPlayers) {
         if (player.socketId === this.godModePlayer) {
           // Give god mode player the rigged hole cards
           player.cards = riggedCards.holeCards;
+        } else if (riggedCards.opponentHands && riggedCards.opponentHands[opponentIndex]) {
+          // Give opponent a rigged strong (but losing) hand
+          player.cards = riggedCards.opponentHands[opponentIndex];
+          opponentIndex++;
         } else {
-          // Deal normally to others from the filtered deck
+          // Fallback: deal normally from filtered deck
           const { dealt, remaining } = dealCards(this.deck, 2);
           player.cards = dealt;
           this.deck = remaining;
