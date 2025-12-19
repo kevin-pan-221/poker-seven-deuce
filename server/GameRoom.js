@@ -579,22 +579,24 @@ export class GameRoom {
     if (this.godModePlayer && this.riggedHand) {
       const riggedCards = this.generateRiggedHand(this.riggedHand);
       
+      // Remove rigged cards from deck FIRST, before dealing to anyone
+      // This prevents other players from getting cards that are reserved for god mode
+      this.deck = this.deck.filter(c => 
+        !riggedCards.holeCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
+      );
+      this.deck = this.deck.filter(c => 
+        !riggedCards.communityCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
+      );
+      
+      // Store the rigged community cards for later
+      this.riggedCommunityCards = riggedCards.communityCards;
+      
       for (const player of seatedPlayers) {
         if (player.socketId === this.godModePlayer) {
           // Give god mode player the rigged hole cards
           player.cards = riggedCards.holeCards;
-          // Remove these cards from deck
-          this.deck = this.deck.filter(c => 
-            !riggedCards.holeCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
-          );
-          // Store the rigged community cards for later
-          this.riggedCommunityCards = riggedCards.communityCards;
-          // Remove community cards from deck too
-          this.deck = this.deck.filter(c => 
-            !riggedCards.communityCards.some(rc => rc.rank === c.rank && rc.suit === c.suit)
-          );
         } else {
-          // Deal normally to others
+          // Deal normally to others from the filtered deck
           const { dealt, remaining } = dealCards(this.deck, 2);
           player.cards = dealt;
           this.deck = remaining;
