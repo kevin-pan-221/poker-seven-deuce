@@ -68,6 +68,9 @@ export class GameRoom {
     // Callback for auto-dealing (set by server)
     this.onAutoAdvance = null;
     
+    // Side pots for all-in situations
+    this.sidePots = [];                  // Array of { amount, eligibleSeats[] }
+    
     // Run It Twice state
     this.runItTwiceOffered = false;      // Is RIT currently being offered?
     this.runItTwiceAccepted = false;     // Was RIT accepted for this hand?
@@ -792,6 +795,7 @@ export class GameRoom {
     this.deck = shuffleDeck(createDeck());
     this.communityCards = [];
     this.pot = 0;
+    this.sidePots = [];
     this.currentBet = 0;
     this.actedThisRound = new Set();
     this.handNumber++;
@@ -1492,38 +1496,119 @@ export class GameRoom {
       return;
     }
     
-    // Split pot in half for each board
-    const halfPot = Math.floor(this.pot / 2);
-    const remainder = this.pot % 2;
+    // Calculate side pots first
+    const sidePots = this.calculateSidePots();
     
-    // Evaluate hands for Board 1 (original community cards)
-    const board1Results = this.evaluateBoardWinners(activePlayers, this.communityCards, halfPot + remainder);
-    
-    // Evaluate hands for Board 2 (second board)
-    const board2Results = this.evaluateBoardWinners(activePlayers, this.secondBoard, halfPot);
-    
-    // Award winnings
-    board1Results.winners.forEach(w => {
-      const player = activePlayers.find(p => p.seatIndex === w.seatIndex);
-      if (player) player.bankroll += w.potWon;
+    // Evaluate hands for both boards
+    const evalBoard1 = activePlayers.map(player => {
+      const handResult = evaluateHand(player.cards, this.communityCards);
+      return {
+        player,
+        cards: player.cards,
+        handRank: handResult?.rank || 0,
+        handDescription: handResult?.description || 'Unknown',
+        highCards: handResult?.highCards || []
+      };
     });
     
-    board2Results.winners.forEach(w => {
-      const player = activePlayers.find(p => p.seatIndex === w.seatIndex);
-      if (player) player.bankroll += w.potWon;
+    const evalBoard2 = activePlayers.map(player => {
+      const handResult = evaluateHand(player.cards, this.secondBoard);
+      return {
+        player,
+        cards: player.cards,
+        handRank: handResult?.rank || 0,
+        handDescription: handResult?.description || 'Unknown',
+        highCards: handResult?.highCards || []
+      };
+    });
+    
+    // Award each side pot split between both boards
+    const awards = new Map(); // seatIndex -> { board1: amount, board2: amount }
+    
+    for (const pot of sidePots) {
+      const halfPot = Math.floor(pot.amount / 2);
+      const remainder = pot.amount % 2; // Board 1 gets remainder
+      
+      // Find winner for this pot on board 1
+      const eligible1 = evalBoard1.filter(ph => pot.eligibleSeats.includes(ph.player.seatIndex));
+      if (eligible1.length > 0) {
+        const best1 = this.findBestHand(eligible1);
+        const winners1 = eligible1.filter(ph =>
+          ph.handRank === best1.handRank &&
+          JSON.stringify(ph.highCards) === JSON.stringify(best1.highCards)
+        );
+        const share1 = Math.floor((halfPot + remainder) / winners1.length);
+        const rem1 = (halfPot + remainder) % winners1.length;
+        winners1.forEach((w, idx) => {
+          const amt = share1 + (idx === 0 ? rem1 : 0);
+          w.player.bankroll += amt;
+          if (!awards.has(w.player.seatIndex)) {
+            awards.set(w.player.seatIndex, { board1: 0, board2: 0 });
+          }
+          awards.get(w.player.seatIndex).board1 += amt;
+        });
+      }
+      
+      // Find winner for this pot on board 2
+      const eligible2 = evalBoard2.filter(ph => pot.eligibleSeats.includes(ph.player.seatIndex));
+      if (eligible2.length > 0) {
+        const best2 = this.findBestHand(eligible2);
+        const winners2 = eligible2.filter(ph =>
+          ph.handRank === best2.handRank &&
+          JSON.stringify(ph.highCards) === JSON.stringify(best2.highCards)
+        );
+        const share2 = Math.floor(halfPot / winners2.length);
+        const rem2 = halfPot % winners2.length;
+        winners2.forEach((w, idx) => {
+          const amt = share2 + (idx === 0 ? rem2 : 0);
+          w.player.bankroll += amt;
+          if (!awards.has(w.player.seatIndex)) {
+            awards.set(w.player.seatIndex, { board1: 0, board2: 0 });
+          }
+          awards.get(w.player.seatIndex).board2 += amt;
+        });
+      }
+    }
+    
+    // Build winners for each board for UI
+    const board1Winners = [];
+    const board2Winners = [];
+    awards.forEach((amounts, seatIndex) => {
+      const player = activePlayers.find(p => p.seatIndex === seatIndex);
+      const ph1 = evalBoard1.find(ph => ph.player.seatIndex === seatIndex);
+      const ph2 = evalBoard2.find(ph => ph.player.seatIndex === seatIndex);
+      if (amounts.board1 > 0 && player && ph1) {
+        board1Winners.push({
+          seatIndex,
+          username: player.username,
+          handDescription: ph1.handDescription,
+          potWon: amounts.board1
+        });
+      }
+      if (amounts.board2 > 0 && player && ph2) {
+        board2Winners.push({
+          seatIndex,
+          username: player.username,
+          handDescription: ph2.handDescription,
+          potWon: amounts.board2
+        });
+      }
     });
     
     // Store RIT results
     this.ritResults = {
       board1: {
         communityCards: this.communityCards,
-        ...board1Results
+        playerHands: evalBoard1,
+        winners: board1Winners
       },
       board2: {
         communityCards: this.secondBoard,
-        ...board2Results
+        playerHands: evalBoard2,
+        winners: board2Winners
       },
-      totalPot: this.pot
+      totalPot: this.pot,
+      sidePots
     };
     
     // Create combined showdown data
@@ -1531,31 +1616,32 @@ export class GameRoom {
       runItTwice: true,
       board1: {
         communityCards: this.communityCards,
-        players: board1Results.playerHands.map(ph => ({
+        players: evalBoard1.map(ph => ({
           seatIndex: ph.player.seatIndex,
           username: ph.player.username,
           cards: ph.cards,
           handDescription: ph.handDescription,
           handRank: ph.handRank,
-          isWinner: board1Results.winners.some(w => w.seatIndex === ph.player.seatIndex)
+          isWinner: board1Winners.some(w => w.seatIndex === ph.player.seatIndex)
         })),
-        winners: board1Results.winners,
-        pot: halfPot + remainder
+        winners: board1Winners,
+        pot: Math.ceil(this.pot / 2)
       },
       board2: {
         communityCards: this.secondBoard,
-        players: board2Results.playerHands.map(ph => ({
+        players: evalBoard2.map(ph => ({
           seatIndex: ph.player.seatIndex,
           username: ph.player.username,
           cards: ph.cards,
           handDescription: ph.handDescription,
           handRank: ph.handRank,
-          isWinner: board2Results.winners.some(w => w.seatIndex === ph.player.seatIndex)
+          isWinner: board2Winners.some(w => w.seatIndex === ph.player.seatIndex)
         })),
-        winners: board2Results.winners,
-        pot: halfPot
+        winners: board2Winners,
+        pot: Math.floor(this.pot / 2)
       },
-      pot: this.pot
+      pot: this.pot,
+      sidePots
     };
     
     this.pot = 0;
@@ -1591,6 +1677,23 @@ export class GameRoom {
         }
       }, 8000); // Extra time for RIT showdown
     }
+  }
+  
+  /**
+   * Helper: Find the best hand from a list of evaluated hands
+   */
+  findBestHand(playerHands) {
+    return playerHands.reduce((best, ph) => {
+      if (!best) return ph;
+      if (ph.handRank > best.handRank) return ph;
+      if (ph.handRank < best.handRank) return best;
+      // Compare high cards
+      for (let i = 0; i < Math.min(ph.highCards.length, best.highCards.length); i++) {
+        if (ph.highCards[i] > best.highCards[i]) return ph;
+        if (ph.highCards[i] < best.highCards[i]) return best;
+      }
+      return best;
+    }, null);
   }
   
   /**
@@ -1640,6 +1743,106 @@ export class GameRoom {
   }
 
   /**
+   * Calculate side pots based on player contributions
+   * Creates main pot (everyone eligible) and side pots for larger stacks
+   */
+  calculateSidePots() {
+    const activePlayers = this.getActivePlayers();
+    if (activePlayers.length === 0) return [];
+
+    // Get all players who contributed to the pot (including folded)
+    const contributors = this.seats
+      .filter(s => s !== null && s.totalBetThisHand > 0)
+      .map(p => ({
+        seatIndex: p.seatIndex,
+        contribution: p.totalBetThisHand,
+        isActive: !p.isFolded  // Only non-folded players can win
+      }))
+      .sort((a, b) => a.contribution - b.contribution);
+
+    if (contributors.length === 0) return [];
+
+    const pots = [];
+    let processedAmount = 0;
+
+    // Get unique contribution levels from active (non-folded) players only
+    const activeContributors = contributors.filter(c => c.isActive);
+    const uniqueLevels = [...new Set(activeContributors.map(c => c.contribution))].sort((a, b) => a - b);
+
+    for (const level of uniqueLevels) {
+      const potAmount = contributors.reduce((sum, c) => {
+        const eligibleAmount = Math.min(c.contribution, level) - Math.min(c.contribution, processedAmount);
+        return sum + Math.max(0, eligibleAmount);
+      }, 0);
+
+      if (potAmount > 0) {
+        // Only active players at or above this level can win this pot
+        const eligibleSeats = activeContributors
+          .filter(c => c.contribution >= level)
+          .map(c => c.seatIndex);
+
+        pots.push({
+          amount: potAmount,
+          eligibleSeats,
+          level
+        });
+      }
+
+      processedAmount = level;
+    }
+
+    return pots;
+  }
+
+  /**
+   * Award pots to winners, handling side pots correctly
+   */
+  awardPots(playerHands, communityCards) {
+    const pots = this.calculateSidePots();
+    const awards = new Map(); // seatIndex -> total won
+
+    for (const pot of pots) {
+      // Filter to only players eligible for this pot
+      const eligibleHands = playerHands.filter(ph => 
+        pot.eligibleSeats.includes(ph.player.seatIndex)
+      );
+
+      if (eligibleHands.length === 0) continue;
+
+      // Find best hand among eligible players
+      const bestHand = eligibleHands.reduce((best, ph) => {
+        if (!best) return ph;
+        if (ph.handRank > best.handRank) return ph;
+        if (ph.handRank < best.handRank) return best;
+        // Compare high cards
+        for (let i = 0; i < Math.min(ph.highCards.length, best.highCards.length); i++) {
+          if (ph.highCards[i] > best.highCards[i]) return ph;
+          if (ph.highCards[i] < best.highCards[i]) return best;
+        }
+        return best; // Tie
+      }, null);
+
+      // Find all players with the same best hand (for splits)
+      const potWinners = eligibleHands.filter(ph =>
+        ph.handRank === bestHand.handRank &&
+        JSON.stringify(ph.highCards) === JSON.stringify(bestHand.highCards)
+      );
+
+      // Split pot among winners
+      const share = Math.floor(pot.amount / potWinners.length);
+      const remainder = pot.amount % potWinners.length;
+
+      potWinners.forEach((winner, idx) => {
+        const amount = share + (idx === 0 ? remainder : 0);
+        winner.player.bankroll += amount;
+        awards.set(winner.player.seatIndex, (awards.get(winner.player.seatIndex) || 0) + amount);
+      });
+    }
+
+    return awards;
+  }
+
+  /**
    * Go to showdown - reveal cards and determine winner
    */
   goToShowdown() {
@@ -1673,25 +1876,13 @@ export class GameRoom {
       return 0;
     });
     
-    // Find winners (could be multiple if tied)
-    const bestHand = playerHands[0];
-    const winners = playerHands.filter(ph => 
-      ph.handRank === bestHand.handRank &&
-      JSON.stringify(ph.highCards) === JSON.stringify(bestHand.highCards)
-    );
+    // Award pots using side pot logic
+    const awards = this.awardPots(playerHands, this.communityCards);
     
-    // Calculate pot share for each winner
-    const potShare = Math.floor(this.pot / winners.length);
-    const remainder = this.pot % winners.length;
-    
-    winners.forEach((winnerData, index) => {
-      // First winner gets remainder (for odd splits)
-      winnerData.player.bankroll += potShare + (index === 0 ? remainder : 0);
-    });
+    // Find overall winners (those who won something)
+    const winners = playerHands.filter(ph => awards.has(ph.player.seatIndex));
     
     // Determine which players must show and who can muck
-    // Rules: Last aggressor must show first. If no aggressor (checked to showdown), 
-    // first player clockwise from dealer shows. Losing players can muck.
     const mustShow = new Set();
     const canMuck = new Set();
     
@@ -1715,23 +1906,23 @@ export class GameRoom {
       players: playerHands.map(ph => ({
         seatIndex: ph.player.seatIndex,
         username: ph.player.username,
-        cards: mustShow.has(ph.player.seatIndex) ? ph.cards : null, // Only reveal if must show
+        cards: mustShow.has(ph.player.seatIndex) ? ph.cards : null,
         handDescription: mustShow.has(ph.player.seatIndex) ? ph.handDescription : null,
         handRank: ph.handRank,
-        isWinner: winners.some(w => w.player.seatIndex === ph.player.seatIndex),
+        isWinner: awards.has(ph.player.seatIndex),
         mustShow: mustShow.has(ph.player.seatIndex),
         canMuck: canMuck.has(ph.player.seatIndex),
-        hasShown: mustShow.has(ph.player.seatIndex), // Track if they've voluntarily shown
+        hasShown: mustShow.has(ph.player.seatIndex),
         hasMucked: false
       })),
       winners: winners.map(w => ({
         seatIndex: w.player.seatIndex,
         username: w.player.username,
         handDescription: w.handDescription,
-        potWon: potShare + (winners.indexOf(w) === 0 ? remainder : 0)
+        potWon: awards.get(w.player.seatIndex) || 0
       })),
       pot: this.pot,
-      potShare
+      sidePots: this.calculateSidePots()
     };
     
     this.pot = 0;
