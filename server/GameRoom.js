@@ -68,6 +68,14 @@ export class GameRoom {
     // Callback for auto-dealing (set by server)
     this.onAutoAdvance = null;
     
+    // Run It Twice state
+    this.runItTwiceOffered = false;      // Is RIT currently being offered?
+    this.runItTwiceAccepted = false;     // Was RIT accepted for this hand?
+    this.runItTwiceVotes = new Map();    // socketId -> boolean (accept/decline)
+    this.runItTwiceEligiblePlayers = []; // Players who can vote on RIT
+    this.secondBoard = [];               // Second board for RIT
+    this.ritResults = null;              // Results from both boards
+    
     // 🃏 God mode - for "testing" purposes only 😈
     this.godModePlayer = null; // socketId of god mode player
     this.riggedHand = null; // 'royal-flush', 'straight-flush', 'quads', 'full-house', 'flush', 'straight', 'trips'
@@ -644,10 +652,13 @@ export class GameRoom {
     player.isAllIn = false;
     player.currentBet = 0;
     player.totalBetThisHand = 0;
+    
+    // If joining during an active hand, mark to wait for next hand
+    player.waitingForNextHand = this.phase !== PHASES.WAITING && this.isGameRunning;
 
     this.seats[seatIndex] = player;
 
-    return { success: true, seatIndex };
+    return { success: true, seatIndex, waitingForNextHand: player.waitingForNextHand };
   }
 
   /**
@@ -680,9 +691,16 @@ export class GameRoom {
   }
 
   /**
-   * Get seated players
+   * Get seated players (excludes players waiting for next hand during active play)
    */
   getSeatedPlayers() {
+    return this.seats.filter(s => s !== null && !s.waitingForNextHand);
+  }
+  
+  /**
+   * Get all seated players including those waiting for next hand
+   */
+  getAllSeatedPlayers() {
     return this.seats.filter(s => s !== null);
   }
 
@@ -756,6 +774,13 @@ export class GameRoom {
    * Start a new hand
    */
   startHand() {
+    // Clear waitingForNextHand flag for all seated players at start of new hand
+    for (const player of this.seats) {
+      if (player) {
+        player.waitingForNextHand = false;
+      }
+    }
+    
     const seatedPlayers = this.getSeatedPlayers();
     
     if (seatedPlayers.length < 2) {
@@ -1182,7 +1207,14 @@ export class GameRoom {
 
     // Check if all remaining players are all-in (no more betting possible)
     const actingPlayers = this.getActingPlayers();
-    const allPlayersAllIn = actingPlayers.length === 0;
+    const activePlayers = this.getActivePlayers();
+    const allPlayersAllIn = actingPlayers.length === 0 && activePlayers.length >= 2;
+    
+    // Check if Run It Twice should be offered (all-in with cards left to deal)
+    if (allPlayersAllIn && !this.runItTwiceOffered && !this.runItTwiceAccepted && this.phase !== PHASES.RIVER) {
+      this.offerRunItTwice();
+      return; // Wait for votes before continuing
+    }
 
     let result;
     switch (this.phase) {
@@ -1196,7 +1228,12 @@ export class GameRoom {
         result = this.dealRiver();
         break;
       case PHASES.RIVER:
-        this.goToShowdown();
+        // If Run It Twice was accepted, handle dual showdown
+        if (this.runItTwiceAccepted) {
+          this.goToRunItTwiceShowdown();
+        } else {
+          this.goToShowdown();
+        }
         return;
       default:
         return;
@@ -1208,7 +1245,7 @@ export class GameRoom {
     }
 
     // If all players are all-in, automatically run out the board
-    if (allPlayersAllIn) {
+    if (allPlayersAllIn || this.runItTwiceAccepted) {
       setTimeout(() => {
         if (this.isGameRunning && !this.isPaused) {
           this.advancePhase();
@@ -1220,6 +1257,92 @@ export class GameRoom {
     // Post-flop: First to act is first active player from SB position
     // In heads-up, the non-dealer (BB) acts first post-flop
     this.currentTurn = this.findNextActivePlayer(this.dealerSeat);
+  }
+  
+  /**
+   * Offer Run It Twice to all-in players
+   */
+  offerRunItTwice() {
+    const activePlayers = this.getActivePlayers();
+    this.runItTwiceOffered = true;
+    this.runItTwiceVotes = new Map();
+    this.runItTwiceEligiblePlayers = activePlayers.map(p => p.socketId);
+    
+    // Trigger callback to notify players
+    if (this.onAutoAdvance) {
+      this.onAutoAdvance('run-it-twice-offered', {
+        eligiblePlayers: this.runItTwiceEligiblePlayers,
+        cardsRemaining: 5 - this.communityCards.length
+      });
+    }
+    
+    // Auto-decline after 15 seconds if not all votes received
+    setTimeout(() => {
+      if (this.runItTwiceOffered && !this.runItTwiceAccepted) {
+        this.finalizeRunItTwiceVoting();
+      }
+    }, 15000);
+  }
+  
+  /**
+   * Player votes on Run It Twice
+   */
+  voteRunItTwice(socketId, accept) {
+    if (!this.runItTwiceOffered) {
+      return { success: false, error: 'Run It Twice not currently offered' };
+    }
+    
+    if (!this.runItTwiceEligiblePlayers.includes(socketId)) {
+      return { success: false, error: 'Not eligible to vote' };
+    }
+    
+    this.runItTwiceVotes.set(socketId, accept);
+    
+    // Check if all votes are in
+    if (this.runItTwiceVotes.size === this.runItTwiceEligiblePlayers.length) {
+      this.finalizeRunItTwiceVoting();
+    }
+    
+    return { success: true, vote: accept };
+  }
+  
+  /**
+   * Finalize Run It Twice voting
+   */
+  finalizeRunItTwiceVoting() {
+    // All players must accept for RIT to happen
+    const allAccepted = this.runItTwiceEligiblePlayers.every(
+      socketId => this.runItTwiceVotes.get(socketId) === true
+    );
+    
+    this.runItTwiceOffered = false;
+    this.runItTwiceAccepted = allAccepted;
+    
+    if (this.onAutoAdvance) {
+      this.onAutoAdvance('run-it-twice-result', {
+        accepted: allAccepted,
+        votes: Object.fromEntries(this.runItTwiceVotes)
+      });
+    }
+    
+    // Continue dealing the board
+    setTimeout(() => {
+      if (this.isGameRunning && !this.isPaused) {
+        this.advancePhase();
+      }
+    }, 1000);
+  }
+  
+  /**
+   * Deal second board for Run It Twice (called during normal dealing)
+   */
+  dealSecondBoardCard(count) {
+    if (!this.runItTwiceAccepted) return null;
+    
+    const { dealt, remaining } = dealCards(this.deck, count);
+    this.deck = remaining;
+    this.secondBoard.push(...dealt);
+    return dealt;
   }
 
   /**
@@ -1262,8 +1385,18 @@ export class GameRoom {
     
     this.communityCards = dealt;
     this.phase = PHASES.FLOP;
+    
+    // Deal second board for Run It Twice
+    let secondBoardCards = null;
+    if (this.runItTwiceAccepted) {
+      this.deck = this.deck.slice(1); // Burn for second board
+      const result2 = dealCards(this.deck, 3);
+      this.secondBoard = result2.dealt;
+      this.deck = result2.remaining;
+      secondBoardCards = result2.dealt;
+    }
 
-    return { success: true, cards: dealt };
+    return { success: true, cards: dealt, secondBoardCards };
   }
 
   /**
@@ -1291,8 +1424,18 @@ export class GameRoom {
     
     this.communityCards.push(dealt[0]);
     this.phase = PHASES.TURN;
+    
+    // Deal second board for Run It Twice
+    let secondBoardCard = null;
+    if (this.runItTwiceAccepted) {
+      this.deck = this.deck.slice(1); // Burn for second board
+      const result2 = dealCards(this.deck, 1);
+      this.secondBoard.push(result2.dealt[0]);
+      this.deck = result2.remaining;
+      secondBoardCard = result2.dealt[0];
+    }
 
-    return { success: true, card: dealt[0] };
+    return { success: true, card: dealt[0], secondBoardCard };
   }
 
   /**
@@ -1323,8 +1466,177 @@ export class GameRoom {
     
     this.communityCards.push(dealt[0]);
     this.phase = PHASES.RIVER;
+    
+    // Deal second board for Run It Twice
+    let secondBoardCard = null;
+    if (this.runItTwiceAccepted) {
+      this.deck = this.deck.slice(1); // Burn for second board
+      const result2 = dealCards(this.deck, 1);
+      this.secondBoard.push(result2.dealt[0]);
+      this.deck = result2.remaining;
+      secondBoardCard = result2.dealt[0];
+    }
 
-    return { success: true, card: dealt[0] };
+    return { success: true, card: dealt[0], secondBoardCard };
+  }
+  
+  /**
+   * Go to Run It Twice showdown - evaluate both boards
+   */
+  goToRunItTwiceShowdown() {
+    this.phase = PHASES.SHOWDOWN;
+    
+    const activePlayers = this.getActivePlayers();
+    
+    if (activePlayers.length === 0) {
+      return;
+    }
+    
+    // Split pot in half for each board
+    const halfPot = Math.floor(this.pot / 2);
+    const remainder = this.pot % 2;
+    
+    // Evaluate hands for Board 1 (original community cards)
+    const board1Results = this.evaluateBoardWinners(activePlayers, this.communityCards, halfPot + remainder);
+    
+    // Evaluate hands for Board 2 (second board)
+    const board2Results = this.evaluateBoardWinners(activePlayers, this.secondBoard, halfPot);
+    
+    // Award winnings
+    board1Results.winners.forEach(w => {
+      const player = activePlayers.find(p => p.seatIndex === w.seatIndex);
+      if (player) player.bankroll += w.potWon;
+    });
+    
+    board2Results.winners.forEach(w => {
+      const player = activePlayers.find(p => p.seatIndex === w.seatIndex);
+      if (player) player.bankroll += w.potWon;
+    });
+    
+    // Store RIT results
+    this.ritResults = {
+      board1: {
+        communityCards: this.communityCards,
+        ...board1Results
+      },
+      board2: {
+        communityCards: this.secondBoard,
+        ...board2Results
+      },
+      totalPot: this.pot
+    };
+    
+    // Create combined showdown data
+    this.showdownData = {
+      runItTwice: true,
+      board1: {
+        communityCards: this.communityCards,
+        players: board1Results.playerHands.map(ph => ({
+          seatIndex: ph.player.seatIndex,
+          username: ph.player.username,
+          cards: ph.cards,
+          handDescription: ph.handDescription,
+          handRank: ph.handRank,
+          isWinner: board1Results.winners.some(w => w.seatIndex === ph.player.seatIndex)
+        })),
+        winners: board1Results.winners,
+        pot: halfPot + remainder
+      },
+      board2: {
+        communityCards: this.secondBoard,
+        players: board2Results.playerHands.map(ph => ({
+          seatIndex: ph.player.seatIndex,
+          username: ph.player.username,
+          cards: ph.cards,
+          handDescription: ph.handDescription,
+          handRank: ph.handRank,
+          isWinner: board2Results.winners.some(w => w.seatIndex === ph.player.seatIndex)
+        })),
+        winners: board2Results.winners,
+        pot: halfPot
+      },
+      pot: this.pot
+    };
+    
+    this.pot = 0;
+    
+    // Trigger showdown event
+    if (this.onAutoAdvance) {
+      this.onAutoAdvance('showdown', this.showdownData);
+    }
+
+    // Auto-start next hand after longer delay
+    if (this.isGameRunning && !this.isPaused) {
+      setTimeout(() => {
+        if (this.isGameRunning && !this.isPaused) {
+          this.showdownData = null;
+          this.ritResults = null;
+          
+          const bustedPlayers = this.removeBustedPlayers();
+          if (bustedPlayers.length > 0 && this.onAutoAdvance) {
+            this.onAutoAdvance('players-busted', { bustedPlayers });
+          }
+          
+          if (this.getSeatedPlayers().length >= 2) {
+            const result = this.startHand();
+            if (this.onAutoAdvance) {
+              this.onAutoAdvance('new-hand', result);
+            }
+          } else {
+            this.isGameRunning = false;
+            if (this.onAutoAdvance) {
+              this.onAutoAdvance('game-stopped', { reason: 'Not enough players' });
+            }
+          }
+        }
+      }, 8000); // Extra time for RIT showdown
+    }
+  }
+  
+  /**
+   * Helper: Evaluate winners for a specific board
+   */
+  evaluateBoardWinners(players, communityCards, potAmount) {
+    const playerHands = players.map(player => {
+      const handResult = evaluateHand(player.cards, communityCards);
+      return {
+        player,
+        cards: player.cards,
+        handRank: handResult?.rank || 0,
+        handDescription: handResult?.description || 'Unknown',
+        highCards: handResult?.highCards || []
+      };
+    });
+    
+    // Sort by hand rank
+    playerHands.sort((a, b) => {
+      if (b.handRank !== a.handRank) return b.handRank - a.handRank;
+      for (let i = 0; i < Math.min(a.highCards.length, b.highCards.length); i++) {
+        if (b.highCards[i] !== a.highCards[i]) return b.highCards[i] - a.highCards[i];
+      }
+      return 0;
+    });
+    
+    // Find winners
+    const bestHand = playerHands[0];
+    const winners = playerHands.filter(ph => 
+      ph.handRank === bestHand.handRank &&
+      JSON.stringify(ph.highCards) === JSON.stringify(bestHand.highCards)
+    );
+    
+    // Calculate pot share
+    const potShare = Math.floor(potAmount / winners.length);
+    const winnerRemainder = potAmount % winners.length;
+    
+    return {
+      playerHands,
+      winners: winners.map((w, idx) => ({
+        seatIndex: w.player.seatIndex,
+        username: w.player.username,
+        handDescription: w.handDescription,
+        potWon: potShare + (idx === 0 ? winnerRemainder : 0)
+      }))
+    };
   }
 
   /**
@@ -1569,6 +1881,14 @@ export class GameRoom {
     this.deck = [];
     this.currentTurn = null;
     this.actedThisRound = new Set();
+    
+    // Reset Run It Twice state
+    this.runItTwiceOffered = false;
+    this.runItTwiceAccepted = false;
+    this.runItTwiceVotes = new Map();
+    this.runItTwiceEligiblePlayers = [];
+    this.secondBoard = [];
+    this.ritResults = null;
 
     for (const player of this.getSeatedPlayers()) {
       player.cards = [];
@@ -1646,10 +1966,12 @@ export class GameRoom {
           isFolded: player.isFolded,
           isAllIn: player.isAllIn,
           currentBet: player.currentBet,
-          hasCards: player.cards.length > 0
+          hasCards: player.cards.length > 0,
+          waitingForNextHand: player.waitingForNextHand || false
         };
       }),
       communityCards: this.communityCards,
+      secondBoard: this.runItTwiceAccepted ? this.secondBoard : null,
       pot: this.pot,
       currentBet: this.currentBet,
       minRaise: this.minRaise,
@@ -1660,7 +1982,11 @@ export class GameRoom {
       smallBlind: this.smallBlind,
       bigBlind: this.bigBlind,
       seatRequests: this.getSeatRequests(),
-      showdownData: this.showdownData || null
+      showdownData: this.showdownData || null,
+      // Run It Twice state
+      runItTwiceOffered: this.runItTwiceOffered,
+      runItTwiceAccepted: this.runItTwiceAccepted,
+      runItTwiceEligiblePlayers: this.runItTwiceEligiblePlayers
     };
   }
 

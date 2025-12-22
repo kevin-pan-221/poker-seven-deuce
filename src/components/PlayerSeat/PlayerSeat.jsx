@@ -39,7 +39,8 @@ function PlayerSeat({
     isEmpty && 'player-seat--empty',
     isCurrentTurn && 'player-seat--active-turn',
     player?.isFolded && 'player-seat--folded',
-    player?.isAllIn && 'player-seat--all-in'
+    player?.isAllIn && 'player-seat--all-in',
+    player?.waitingForNextHand && 'player-seat--waiting'
   ].filter(Boolean).join(' ');
 
   return (
@@ -96,6 +97,9 @@ function PlayerSeat({
           {/* Status badges */}
           {isLocalPlayer && (
             <div className="player-seat__local-badge">YOU</div>
+          )}
+          {player?.waitingForNextHand && (
+            <div className="player-seat__waiting-badge">WAITING</div>
           )}
           {player?.isFolded && (
             <div className="player-seat__folded-badge">FOLDED</div>

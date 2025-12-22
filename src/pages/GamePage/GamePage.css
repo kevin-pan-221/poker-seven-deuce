@@ -253,6 +253,65 @@
   line-height: 1;
 }
 
+/* Run It Twice Prompt */
+.run-it-twice-prompt {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-md);
+  background: rgba(15, 15, 26, 0.95);
+  border: 3px solid var(--accent-gold);
+  border-radius: 8px;
+  padding: var(--spacing-lg) var(--spacing-xl);
+  box-shadow: 
+    0 0 20px rgba(255, 215, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.run-it-twice-prompt__title {
+  font-family: var(--font-pixel);
+  font-size: 1rem;
+  color: var(--accent-gold);
+  letter-spacing: 2px;
+}
+
+.run-it-twice-prompt__description {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+  max-width: 400px;
+}
+
+.run-it-twice-prompt__buttons {
+  display: flex;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-sm);
+}
+
+.run-it-twice-prompt__btn {
+  font-size: 0.6rem !important;
+  padding: var(--spacing-md) var(--spacing-xl);
+}
+
+.run-it-twice-prompt__btn--accept {
+  background: var(--accent-chip-green);
+  border-color: #27ae60 #1e8449 #1e8449 #27ae60;
+}
+
+.run-it-twice-prompt__btn--accept:hover {
+  background: #2ecc71;
+}
+
+.run-it-twice-prompt__btn--decline {
+  background: #666;
+  border-color: #888 #444 #444 #888;
+}
+
+.run-it-twice-prompt__btn--decline:hover {
+  background: #777;
+}
+
 /* Game Events */
 .game-events {
   position: fixed;
@@ -852,6 +911,67 @@
   color: var(--text-muted);
   font-style: italic;
   animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Run It Twice Results */
+.showdown-panel__rit-results {
+  display: flex;
+  gap: var(--spacing-lg);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.showdown-panel__board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-md);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 2px solid;
+  min-width: 200px;
+}
+
+.showdown-panel__board--first {
+  border-color: var(--accent-gold);
+}
+
+.showdown-panel__board--second {
+  border-color: var(--accent-chip-blue);
+}
+
+.showdown-panel__board-label {
+  font-family: var(--font-pixel);
+  font-size: 0.5rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.showdown-panel__board--first .showdown-panel__board-label {
+  color: var(--accent-gold);
+}
+
+.showdown-panel__board--second .showdown-panel__board-label {
+  color: var(--accent-chip-blue);
+}
+
+.showdown-panel__board-cards {
+  display: flex;
+  gap: 4px;
+}
+
+.showdown-panel__board-winners {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.showdown-winner--compact {
+  font-family: var(--font-body);
+  font-size: 0.85rem;
+  color: var(--text-primary);
 }
 
 @keyframes pulse {

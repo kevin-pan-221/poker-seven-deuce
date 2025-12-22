@@ -10,7 +10,7 @@
   gap: var(--spacing-lg);
   padding: var(--spacing-xl);
   width: 100%;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -26,7 +26,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 10;
-  max-width: 800px;
+  max-width: 1000px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -34,8 +34,8 @@
 
 /* Table felt - the playing surface */
 .poker-table__felt {
-  width: 75%;
-  height: 70%;
+  width: 80%;
+  height: 75%;
   background: linear-gradient(
     145deg,
     var(--table-green-light) 0%,
@@ -122,14 +122,14 @@
 
 .poker-table__pot-label {
   font-family: var(--font-pixel);
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   letter-spacing: 2px;
 }
 
 .poker-table__pot-amount {
   font-family: var(--font-body);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
   color: var(--accent-gold);
   font-weight: bold;
 }
@@ -145,16 +145,63 @@
 }
 
 .poker-table__card-slot {
-  width: 52px;
-  height: 72px;
+  width: 60px;
+  height: 84px;
   border: 2px dashed rgba(255, 255, 255, 0.1);
   border-radius: 6px;
+}
+
+.poker-table__card-slot--small {
+  width: 40px;
+  height: 56px;
+}
+
+/* Run It Twice - Dual Boards */
+.poker-table__dual-boards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  z-index: 1;
+}
+
+.poker-table__board {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  border: 2px solid transparent;
+}
+
+.poker-table__board--first {
+  border-color: var(--accent-gold);
+}
+
+.poker-table__board--second {
+  border-color: var(--accent-chip-blue);
+}
+
+.poker-table__board-label {
+  font-family: var(--font-pixel);
+  font-size: 0.4rem;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.poker-table__board--first .poker-table__board-label {
+  color: var(--accent-gold);
+}
+
+.poker-table__board--second .poker-table__board-label {
+  color: var(--accent-chip-blue);
 }
 
 /* Phase indicator */
 .poker-table__phase {
   font-family: var(--font-pixel);
-  font-size: 0.5rem;
+  font-size: 0.6rem;
   color: var(--accent-gold);
   letter-spacing: 2px;
   padding: var(--spacing-xs) var(--spacing-sm);

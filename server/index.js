@@ -622,6 +622,35 @@ io.on('connection', (socket) => {
   });
 
   // ============================================
+  // 🎲 Run It Twice Events
+  // ============================================
+
+  /**
+   * Vote on Run It Twice
+   */
+  socket.on('run-it-twice-vote', ({ accept }, callback) => {
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.voteRunItTwice(socket.id, accept);
+    
+    if (result.success) {
+      const player = room.players.get(socket.id);
+      broadcastRoomUpdate(roomId, 'run-it-twice-vote', {
+        socketId: socket.id,
+        username: player?.username,
+        accept: accept
+      });
+    }
+
+    callback(result);
+  });
+
+  // ============================================
   // 🃏 God Mode Events (Secret!)
   // ============================================
 

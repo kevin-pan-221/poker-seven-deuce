@@ -349,6 +349,25 @@ class SocketService {
   }
 
   // ============================================
+  // 🎲 Run It Twice Methods
+  // ============================================
+
+  /**
+   * Vote on Run It Twice
+   */
+  runItTwiceVote(accept) {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('run-it-twice-vote', { accept }, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  // ============================================
   // 🃏 God Mode Methods
   // ============================================
 

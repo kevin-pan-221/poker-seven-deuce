@@ -71,6 +71,11 @@ function GamePage() {
   const [showdownOptions, setShowdownOptions] = useState(null);
   const [showdownData, setShowdownData] = useState(null);
   
+  // Run It Twice state
+  const [runItTwiceOffered, setRunItTwiceOffered] = useState(false);
+  const [runItTwiceEligible, setRunItTwiceEligible] = useState(false);
+  const [runItTwiceVoted, setRunItTwiceVoted] = useState(false);
+  
   // Refs for tracking state changes (for sounds)
   const prevCardsRef = useRef([]);
   const prevTurnRef = useRef(null);
@@ -144,6 +149,13 @@ function GamePage() {
       // Track turn changes for sound
       prevTurnRef.current = state.currentTurn;
       setRoomState(state);
+      
+      // Update Run It Twice state from room state
+      setRunItTwiceOffered(state.runItTwiceOffered || false);
+      if (state.runItTwiceEligiblePlayers && mySeatIndex !== null) {
+        const mySocketId = socketService.getSocket()?.id;
+        setRunItTwiceEligible(state.runItTwiceEligiblePlayers.includes(mySocketId));
+      }
     };
 
     const handlePlayerState = (state) => {
@@ -255,6 +267,43 @@ function GamePage() {
             message: `💸 ${p.username} busted out!` 
           }]);
         });
+      }
+      
+      // Handle Run It Twice events
+      if (event.type === 'run-it-twice-offered') {
+        setRunItTwiceOffered(true);
+        setRunItTwiceVoted(false);
+        const mySocketId = socketService.getSocket()?.id;
+        setRunItTwiceEligible(event.eligiblePlayers?.includes(mySocketId) || false);
+        soundService.yourTurn();
+        setGameEvents(prev => [...prev.slice(-4), { 
+          type: 'info', 
+          message: `🎲 Run It Twice offered! (${event.cardsRemaining} cards remaining)` 
+        }]);
+      }
+      if (event.type === 'run-it-twice-result') {
+        setRunItTwiceOffered(false);
+        setRunItTwiceVoted(false);
+        setRunItTwiceEligible(false);
+        if (event.accepted) {
+          soundService.click();
+          setGameEvents(prev => [...prev.slice(-4), { 
+            type: 'info', 
+            message: '🎲 Running It Twice! Two boards will be dealt.' 
+          }]);
+        } else {
+          setGameEvents(prev => [...prev.slice(-4), { 
+            type: 'info', 
+            message: '🎲 Run It Twice declined. Single board.' 
+          }]);
+        }
+      }
+      if (event.type === 'run-it-twice-vote') {
+        const voteText = event.accept ? 'accepted' : 'declined';
+        setGameEvents(prev => [...prev.slice(-4), { 
+          type: 'info', 
+          message: `🎲 ${event.username} ${voteText} Run It Twice` 
+        }]);
       }
       
       // Handle host change
@@ -474,6 +523,19 @@ function GamePage() {
       soundService.error();
     } finally {
       setIsLoading(prev => ({ ...prev, action: false }));
+    }
+  };
+
+  /**
+   * Handle Run It Twice vote
+   */
+  const handleRunItTwiceVote = async (accept) => {
+    try {
+      setRunItTwiceVoted(true);
+      await socketService.runItTwiceVote(accept);
+    } catch (err) {
+      setError(err.message);
+      setRunItTwiceVoted(false);
     }
   };
 
@@ -750,59 +812,104 @@ function GamePage() {
           onTakeSeat={handleTakeSeat}
           tableName=""
           communityCards={roomState?.communityCards || []}
+          secondBoard={roomState?.secondBoard || []}
           pot={roomState?.pot || 0}
           phase={roomState?.phase || PHASES.WAITING}
           currentTurn={roomState?.currentTurn}
           dealerSeat={roomState?.dealerSeat}
+          runItTwiceAccepted={roomState?.runItTwiceAccepted || false}
         />
 
         {/* Showdown Panel - Shows winner and revealed cards */}
         {roomState?.phase === PHASES.SHOWDOWN && showdownData && (
           <div className="showdown-panel animate-fade-in">
             <div className="showdown-panel__header pixel-text">
-              {showdownData.noShowdown ? '🏆 Winner!' : '🃏 Showdown!'}
+              {showdownData.runItTwice ? '🎲 Run It Twice Results!' : 
+               showdownData.noShowdown ? '🏆 Winner!' : '🃏 Showdown!'}
             </div>
             
-            {/* Winners */}
-            <div className="showdown-panel__winners">
-              {showdownData.winners?.map((winner, i) => (
-                <div key={i} className="showdown-winner">
-                  <span className="showdown-winner__name">{winner.username}</span>
-                  <span className="showdown-winner__pot">wins ${winner.potWon}</span>
-                  {winner.handDescription && (
-                    <span className="showdown-winner__hand">{winner.handDescription}</span>
-                  )}
-                </div>
-              ))}
-            </div>
-            
-            {/* All players' cards at showdown */}
-            {!showdownData.noShowdown && showdownData.players && (
-              <div className="showdown-panel__hands">
-                {showdownData.players.map((p, i) => (
-                  <div key={i} className={`showdown-hand ${p.isWinner ? 'showdown-hand--winner' : ''}`}>
-                    <span className="showdown-hand__name">{p.username}</span>
-                    {p.cards ? (
-                      <div className="showdown-hand__cards">
-                        {p.cards.map((card, j) => (
-                          <Card 
-                            key={j} 
-                            rank={card.rank} 
-                            suit={card.suit} 
-                            size="small"
-                          />
-                        ))}
-                        <span className="showdown-hand__desc">{p.handDescription}</span>
-                      </div>
-                    ) : p.hasMucked ? (
-                      <span className="showdown-hand__mucked">Mucked</span>
-                    ) : (
-                      <span className="showdown-hand__hidden">?? ??</span>
-                    )}
-                    {p.isWinner && <span className="showdown-hand__winner-badge">🏆</span>}
+            {/* Run It Twice - Show both board results */}
+            {showdownData.runItTwice ? (
+              <div className="showdown-panel__rit-results">
+                {/* Board 1 Results */}
+                <div className="showdown-panel__board showdown-panel__board--first">
+                  <span className="showdown-panel__board-label">Board 1</span>
+                  <div className="showdown-panel__board-cards">
+                    {showdownData.board1?.communityCards?.map((card, i) => (
+                      <Card key={i} rank={card.rank} suit={card.suit} size="small" />
+                    ))}
                   </div>
-                ))}
+                  <div className="showdown-panel__board-winners">
+                    {showdownData.board1?.winners?.map((w, i) => (
+                      <span key={i} className="showdown-winner showdown-winner--compact">
+                        🏆 {w.username}: {w.handDescription} (${w.potWon})
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                
+                {/* Board 2 Results */}
+                <div className="showdown-panel__board showdown-panel__board--second">
+                  <span className="showdown-panel__board-label">Board 2</span>
+                  <div className="showdown-panel__board-cards">
+                    {showdownData.board2?.communityCards?.map((card, i) => (
+                      <Card key={i} rank={card.rank} suit={card.suit} size="small" />
+                    ))}
+                  </div>
+                  <div className="showdown-panel__board-winners">
+                    {showdownData.board2?.winners?.map((w, i) => (
+                      <span key={i} className="showdown-winner showdown-winner--compact">
+                        🏆 {w.username}: {w.handDescription} (${w.potWon})
+                      </span>
+                    ))}
+                  </div>
+                </div>
               </div>
+            ) : (
+              /* Normal showdown */
+              <>
+                {/* Winners */}
+                <div className="showdown-panel__winners">
+                  {showdownData.winners?.map((winner, i) => (
+                    <div key={i} className="showdown-winner">
+                      <span className="showdown-winner__name">{winner.username}</span>
+                      <span className="showdown-winner__pot">wins ${winner.potWon}</span>
+                      {winner.handDescription && (
+                        <span className="showdown-winner__hand">{winner.handDescription}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                
+                {/* All players' cards at showdown */}
+                {!showdownData.noShowdown && showdownData.players && (
+                  <div className="showdown-panel__hands">
+                    {showdownData.players.map((p, i) => (
+                      <div key={i} className={`showdown-hand ${p.isWinner ? 'showdown-hand--winner' : ''}`}>
+                        <span className="showdown-hand__name">{p.username}</span>
+                        {p.cards ? (
+                          <div className="showdown-hand__cards">
+                            {p.cards.map((card, j) => (
+                              <Card 
+                                key={j} 
+                                rank={card.rank} 
+                                suit={card.suit} 
+                                size="small"
+                              />
+                            ))}
+                            <span className="showdown-hand__desc">{p.handDescription}</span>
+                          </div>
+                        ) : p.hasMucked ? (
+                          <span className="showdown-hand__mucked">Mucked</span>
+                        ) : (
+                          <span className="showdown-hand__hidden">?? ??</span>
+                        )}
+                        {p.isWinner && <span className="showdown-hand__winner-badge">🏆</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
             
             {/* Show/Muck buttons for player at showdown */}
@@ -860,7 +967,7 @@ function GamePage() {
         )}
 
         {/* Betting Controls - only show when seated and game is active */}
-        {mySeatIndex !== null && roomState?.isGameRunning && roomState?.phase !== PHASES.WAITING && roomState?.phase !== PHASES.SHOWDOWN && (
+        {mySeatIndex !== null && roomState?.isGameRunning && roomState?.phase !== PHASES.WAITING && roomState?.phase !== PHASES.SHOWDOWN && !runItTwiceOffered && (
           <BettingControls
             validActions={validActions}
             toCall={toCall}
@@ -871,6 +978,50 @@ function GamePage() {
             isMyTurn={isMyTurn}
             disabled={isLoading.action}
           />
+        )}
+
+        {/* Run It Twice Prompt */}
+        {runItTwiceOffered && runItTwiceEligible && !runItTwiceVoted && (
+          <div className="run-it-twice-prompt animate-fade-in">
+            <div className="run-it-twice-prompt__title">
+              🎲 Run It Twice?
+            </div>
+            <div className="run-it-twice-prompt__description">
+              All players are all-in! Would you like to run the remaining board twice and split the pot?
+            </div>
+            <div className="run-it-twice-prompt__buttons">
+              <button 
+                className="pixel-btn run-it-twice-prompt__btn run-it-twice-prompt__btn--accept"
+                onClick={() => handleRunItTwiceVote(true)}
+              >
+                ✓ Run It Twice
+              </button>
+              <button 
+                className="pixel-btn run-it-twice-prompt__btn run-it-twice-prompt__btn--decline"
+                onClick={() => handleRunItTwiceVote(false)}
+              >
+                ✗ Run Once
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Run It Twice - Waiting for other players */}
+        {runItTwiceOffered && runItTwiceEligible && runItTwiceVoted && (
+          <div className="run-it-twice-prompt animate-fade-in">
+            <div className="run-it-twice-prompt__title">
+              🎲 Waiting for other players...
+            </div>
+          </div>
+        )}
+
+        {/* Run It Twice - Spectator view */}
+        {runItTwiceOffered && !runItTwiceEligible && (
+          <div className="run-it-twice-prompt animate-fade-in">
+            <div className="run-it-twice-prompt__title">
+              🎲 Run It Twice Vote in Progress...
+            </div>
+          </div>
         )}
 
         {/* Game Controls */}

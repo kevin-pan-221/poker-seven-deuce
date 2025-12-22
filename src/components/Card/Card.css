@@ -125,47 +125,47 @@
 }
 
 .card--medium {
-  width: 52px;
-  height: 72px;
-  padding: 4px;
+  width: 60px;
+  height: 84px;
+  padding: 5px;
 }
 
 .card--medium .card__rank {
-  font-size: 11px;
+  font-size: 13px;
 }
 
 .card--medium .card__suit {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .card--medium .card__suit-large {
-  font-size: 20px;
+  font-size: 24px;
 }
 
 .card--medium .card__back-logo {
-  font-size: 7px;
+  font-size: 8px;
 }
 
 .card--large {
-  width: 70px;
-  height: 98px;
-  padding: 6px;
+  width: 80px;
+  height: 112px;
+  padding: 7px;
 }
 
 .card--large .card__rank {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 .card--large .card__suit {
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .card--large .card__suit-large {
-  font-size: 28px;
+  font-size: 32px;
 }
 
 .card--large .card__back-logo {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 /* Dealing animation */

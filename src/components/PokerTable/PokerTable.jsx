@@ -15,10 +15,12 @@ import Card from '../Card';
  * @param {Function} props.onTakeSeat - Callback when a seat is taken
  * @param {string} props.tableName - Name of the table
  * @param {Array} props.communityCards - Cards on the board
+ * @param {Array} props.secondBoard - Second board for Run It Twice
  * @param {number} props.pot - Current pot amount
  * @param {string} props.phase - Current game phase
  * @param {number|null} props.currentTurn - Seat index of current actor
  * @param {number} props.dealerSeat - Seat index of dealer
+ * @param {boolean} props.runItTwiceAccepted - Whether Run It Twice is active
  */
 function PokerTable({ 
   seats = Array(8).fill(null),
@@ -26,10 +28,12 @@ function PokerTable({
   onTakeSeat = () => {},
   tableName = "Table 1",
   communityCards = [],
+  secondBoard = [],
   pot = 0,
   phase = 'waiting',
   currentTurn = null,
-  dealerSeat = -1
+  dealerSeat = -1,
+  runItTwiceAccepted = false
 }) {
   return (
     <div className="poker-table-container">
@@ -51,8 +55,49 @@ function PokerTable({
             </div>
           )}
           
-          {/* Community Cards */}
-          {communityCards.length > 0 && (
+          {/* Run It Twice: Show both boards */}
+          {runItTwiceAccepted && communityCards.length > 0 ? (
+            <div className="poker-table__dual-boards">
+              {/* Board 1 */}
+              <div className="poker-table__board poker-table__board--first">
+                <span className="poker-table__board-label">Board 1</span>
+                <div className="poker-table__community-cards">
+                  {communityCards.map((card, i) => (
+                    <Card 
+                      key={i}
+                      rank={card.rank}
+                      suit={card.suit}
+                      size="small"
+                      dealing={true}
+                    />
+                  ))}
+                  {Array.from({ length: 5 - communityCards.length }).map((_, i) => (
+                    <div key={`empty-1-${i}`} className="poker-table__card-slot poker-table__card-slot--small" />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Board 2 */}
+              <div className="poker-table__board poker-table__board--second">
+                <span className="poker-table__board-label">Board 2</span>
+                <div className="poker-table__community-cards">
+                  {secondBoard.map((card, i) => (
+                    <Card 
+                      key={i}
+                      rank={card.rank}
+                      suit={card.suit}
+                      size="small"
+                      dealing={true}
+                    />
+                  ))}
+                  {Array.from({ length: 5 - secondBoard.length }).map((_, i) => (
+                    <div key={`empty-2-${i}`} className="poker-table__card-slot poker-table__card-slot--small" />
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : communityCards.length > 0 && (
+            /* Single board (normal play) */
             <div className="poker-table__community-cards">
               {communityCards.map((card, i) => (
                 <Card 
