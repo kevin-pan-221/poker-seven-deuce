@@ -462,6 +462,110 @@
   margin-top: var(--spacing-sm);
 }
 
+/* Settings Modal */
+.settings-modal {
+  background: var(--bg-darker);
+  border: 3px solid var(--accent-gold);
+  border-radius: 8px;
+  padding: var(--spacing-lg);
+  min-width: 320px;
+  max-width: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+}
+
+.settings-modal h3 {
+  font-size: 0.75rem;
+  color: var(--accent-gold);
+  text-align: center;
+  margin: 0;
+}
+
+.settings-modal__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm);
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+.settings-modal__section h4 {
+  font-family: var(--font-heading);
+  font-size: 0.5rem;
+  color: var(--text-primary);
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.settings-modal__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-sm);
+}
+
+.settings-modal__row label {
+  font-family: var(--font-body);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  min-width: 100px;
+}
+
+.settings-modal__row input {
+  width: 100px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.settings-modal__row--toggle {
+  padding: var(--spacing-xs) 0;
+}
+
+.settings-modal__presets {
+  display: flex;
+  gap: var(--spacing-xs);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.settings-modal__note {
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  color: var(--accent-gold);
+  margin: 0;
+  text-align: center;
+}
+
+.settings-modal__hint {
+  font-family: var(--font-body);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.settings-modal__actions {
+  display: flex;
+  gap: var(--spacing-sm);
+  justify-content: center;
+  margin-top: var(--spacing-sm);
+}
+
+.pixel-btn--active {
+  background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+  border-color: #66bb6a;
+  color: #fff;
+}
+
+.pixel-btn--inactive {
+  background: linear-gradient(180deg, #666 0%, #444 100%);
+  border-color: #888;
+  color: var(--text-muted);
+}
+
 .pixel-btn--small {
   font-size: 0.4rem !important;
   padding: var(--spacing-xs) var(--spacing-sm);

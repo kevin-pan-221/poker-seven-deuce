@@ -76,6 +76,12 @@ function GamePage() {
   const [runItTwiceEligible, setRunItTwiceEligible] = useState(false);
   const [runItTwiceVoted, setRunItTwiceVoted] = useState(false);
   
+  // Settings state
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [settingsSmallBlind, setSettingsSmallBlind] = useState(10);
+  const [settingsBigBlind, setSettingsBigBlind] = useState(20);
+  const [settingsRunItTwice, setSettingsRunItTwice] = useState(true);
+  
   // Refs for tracking state changes (for sounds)
   const prevCardsRef = useRef([]);
   const prevTurnRef = useRef(null);
@@ -512,6 +518,34 @@ function GamePage() {
   };
 
   /**
+   * Open settings modal
+   */
+  const handleOpenSettings = () => {
+    if (!isHost) return;
+    // Initialize with current values
+    setSettingsSmallBlind(roomState?.smallBlind || 10);
+    setSettingsBigBlind(roomState?.bigBlind || 20);
+    setSettingsRunItTwice(roomState?.runItTwiceEnabled !== false);
+    setShowSettingsModal(true);
+  };
+
+  /**
+   * Save settings
+   */
+  const handleSaveSettings = async () => {
+    try {
+      await socketService.updateSettings({
+        smallBlind: settingsSmallBlind,
+        bigBlind: settingsBigBlind,
+        runItTwiceEnabled: settingsRunItTwice
+      });
+      setShowSettingsModal(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  /**
    * Handle betting action
    */
   const handleBettingAction = async (action, amount = 0) => {
@@ -733,6 +767,69 @@ function GamePage() {
           </div>
         </div>
       )}
+
+      {/* Settings Modal (Host Only) */}
+      {showSettingsModal && isHost && (
+        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)}>
+          <div className="settings-modal" onClick={e => e.stopPropagation()}>
+            <h3 className="pixel-text">⚙️ Game Settings</h3>
+            
+            <div className="settings-modal__section">
+              <h4>Blinds</h4>
+              <div className="settings-modal__row">
+                <label>Small Blind:</label>
+                <input
+                  type="number"
+                  className="home-input"
+                  value={settingsSmallBlind}
+                  onChange={(e) => setSettingsSmallBlind(Math.max(1, parseInt(e.target.value) || 1))}
+                  min={1}
+                  step={5}
+                />
+              </div>
+              <div className="settings-modal__row">
+                <label>Big Blind:</label>
+                <input
+                  type="number"
+                  className="home-input"
+                  value={settingsBigBlind}
+                  onChange={(e) => setSettingsBigBlind(Math.max(2, parseInt(e.target.value) || 2))}
+                  min={2}
+                  step={10}
+                />
+              </div>
+              <div className="settings-modal__presets">
+                <button type="button" className="pixel-btn pixel-btn--small" onClick={() => { setSettingsSmallBlind(5); setSettingsBigBlind(10); }}>5/10</button>
+                <button type="button" className="pixel-btn pixel-btn--small" onClick={() => { setSettingsSmallBlind(10); setSettingsBigBlind(20); }}>10/20</button>
+                <button type="button" className="pixel-btn pixel-btn--small" onClick={() => { setSettingsSmallBlind(25); setSettingsBigBlind(50); }}>25/50</button>
+                <button type="button" className="pixel-btn pixel-btn--small" onClick={() => { setSettingsSmallBlind(50); setSettingsBigBlind(100); }}>50/100</button>
+              </div>
+              {roomState?.isGameRunning && roomState?.phase !== 'waiting' && roomState?.phase !== 'showdown' && (
+                <p className="settings-modal__note">⚠️ Blind changes apply after current hand</p>
+              )}
+            </div>
+            
+            <div className="settings-modal__section">
+              <h4>Options</h4>
+              <div className="settings-modal__row settings-modal__row--toggle">
+                <label>Run It Twice:</label>
+                <button 
+                  className={`pixel-btn pixel-btn--small ${settingsRunItTwice ? 'pixel-btn--active' : 'pixel-btn--inactive'}`}
+                  onClick={() => setSettingsRunItTwice(!settingsRunItTwice)}
+                >
+                  {settingsRunItTwice ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <p className="settings-modal__hint">When enabled, players can run the board twice when all-in</p>
+            </div>
+            
+            <div className="settings-modal__actions">
+              <button type="button" className="pixel-btn pixel-btn--secondary" onClick={() => setShowSettingsModal(false)}>Cancel</button>
+              <button type="button" className="pixel-btn" onClick={handleSaveSettings}>Save Settings</button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Host Seat Request Panel */}
       {isHost && roomState?.seatRequests?.length > 0 && (
@@ -783,6 +880,15 @@ function GamePage() {
             )}
           </div>
           <div className="game-info-bar__right">
+            {isHost && (
+              <button 
+                className="pixel-btn game-info-bar__btn game-info-bar__btn--settings"
+                onClick={handleOpenSettings}
+                title="Game Settings"
+              >
+                ⚙️
+              </button>
+            )}
             <button 
               className={`pixel-btn game-info-bar__btn game-info-bar__btn--sound ${!soundEnabled ? 'muted' : ''}`}
               onClick={() => {

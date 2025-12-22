@@ -368,6 +368,25 @@ class SocketService {
   }
 
   // ============================================
+  // ⚙️ Settings Methods
+  // ============================================
+
+  /**
+   * Update game settings (host only)
+   */
+  updateSettings(settings) {
+    return new Promise((resolve, reject) => {
+      this.socket.emit('update-settings', { settings }, (response) => {
+        if (response.success) {
+          resolve(response);
+        } else {
+          reject(new Error(response.error));
+        }
+      });
+    });
+  }
+
+  // ============================================
   // 🃏 God Mode Methods
   // ============================================
 

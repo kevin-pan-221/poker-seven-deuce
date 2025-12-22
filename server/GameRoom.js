@@ -57,6 +57,9 @@ export class GameRoom {
     this.smallBlind = 10;
     this.bigBlind = 20;
     
+    // Settings
+    this.runItTwiceEnabled = true;  // Allow Run It Twice when all-in
+    
     // Game control
     this.isGameRunning = false;  // Is the game session active
     this.isPaused = false;       // Is the game paused
@@ -1215,7 +1218,8 @@ export class GameRoom {
     const allPlayersAllIn = actingPlayers.length === 0 && activePlayers.length >= 2;
     
     // Check if Run It Twice should be offered (all-in with cards left to deal)
-    if (allPlayersAllIn && !this.runItTwiceOffered && !this.runItTwiceAccepted && this.phase !== PHASES.RIVER) {
+    // Only offer if RIT is enabled in settings
+    if (this.runItTwiceEnabled && allPlayersAllIn && !this.runItTwiceOffered && !this.runItTwiceAccepted && this.phase !== PHASES.RIVER) {
       this.offerRunItTwice();
       return; // Wait for votes before continuing
     }
@@ -2177,7 +2181,46 @@ export class GameRoom {
       // Run It Twice state
       runItTwiceOffered: this.runItTwiceOffered,
       runItTwiceAccepted: this.runItTwiceAccepted,
-      runItTwiceEligiblePlayers: this.runItTwiceEligiblePlayers
+      runItTwiceEligiblePlayers: this.runItTwiceEligiblePlayers,
+      // Settings
+      runItTwiceEnabled: this.runItTwiceEnabled
+    };
+  }
+
+  /**
+   * Update game settings (host only)
+   */
+  updateSettings(socketId, settings) {
+    // Verify host
+    if (socketId !== this.hostId) {
+      return { success: false, error: 'Only the host can change settings' };
+    }
+    
+    // Can't change blinds during a hand
+    if (this.isGameRunning && this.phase !== PHASES.WAITING && this.phase !== PHASES.SHOWDOWN) {
+      if (settings.smallBlind !== undefined || settings.bigBlind !== undefined) {
+        return { success: false, error: 'Cannot change blinds during a hand' };
+      }
+    }
+    
+    // Update settings
+    if (settings.smallBlind !== undefined && settings.smallBlind > 0) {
+      this.smallBlind = Math.floor(settings.smallBlind);
+    }
+    if (settings.bigBlind !== undefined && settings.bigBlind > 0) {
+      this.bigBlind = Math.floor(settings.bigBlind);
+    }
+    if (settings.runItTwiceEnabled !== undefined) {
+      this.runItTwiceEnabled = !!settings.runItTwiceEnabled;
+    }
+    
+    return { 
+      success: true, 
+      settings: {
+        smallBlind: this.smallBlind,
+        bigBlind: this.bigBlind,
+        runItTwiceEnabled: this.runItTwiceEnabled
+      }
     };
   }
 

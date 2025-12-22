@@ -651,6 +651,30 @@ io.on('connection', (socket) => {
   });
 
   // ============================================
+  // ⚙️ Settings Events (Host Only)
+  // ============================================
+
+  /**
+   * Update game settings
+   */
+  socket.on('update-settings', ({ settings }, callback) => {
+    const roomId = socketRooms.get(socket.id);
+    const room = rooms.get(roomId);
+
+    if (!room) {
+      return callback({ success: false, error: 'Not in a room' });
+    }
+
+    const result = room.updateSettings(socket.id, settings);
+    
+    if (result.success) {
+      broadcastRoomUpdate(roomId, 'settings-updated', result.settings);
+    }
+
+    callback(result);
+  });
+
+  // ============================================
   // 🃏 God Mode Events (Secret!)
   // ============================================
 
